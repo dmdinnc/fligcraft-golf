@@ -1,0 +1,12 @@
+{
+  "item.fligcraft_golf.golf_ball": "Golf Ball",
+  "item.fligcraft_golf.driver": "Driver",
+  "item.fligcraft_golf.hybrid": "Hybrid",
+  "item.fligcraft_golf.iron": "Iron",
+  "item.fligcraft_golf.pitching_wedge": "Pitching Wedge",
+  "item.fligcraft_golf.sand_wedge": "Sand Wedge",
+  "item.fligcraft_golf.putter": "Putter",
+  "block.fligcraft_golf.golf_tee": "Golf Tee",
+  "block.fligcraft_golf.golf_flag": "Golf Flag",
+  "itemGroup.fligcraft_golf": "Fligcraft - Golf"
+}

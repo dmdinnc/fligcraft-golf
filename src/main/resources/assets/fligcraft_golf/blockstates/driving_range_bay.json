@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "fligcraft_golf:block/driving_range_bay"
+    },
+    "facing=south": {
+      "model": "fligcraft_golf:block/driving_range_bay",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "fligcraft_golf:block/driving_range_bay",
+      "y": 270
+    },
+    "facing=east": {
+      "model": "fligcraft_golf:block/driving_range_bay",
+      "y": 90
+    }
+  }
+}

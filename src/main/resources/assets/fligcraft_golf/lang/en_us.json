@@ -1,0 +1,18 @@
+{
+  "item.fligcraft_golf.golf_ball": "Golf Ball",
+  "item.fligcraft_golf.golf_ball_tracker": "Golf Ball Tracker",
+  "item.fligcraft_golf.driver": "Driver",
+  "item.fligcraft_golf.hybrid": "Hybrid",
+  "item.fligcraft_golf.iron": "Iron",
+  "item.fligcraft_golf.pitching_wedge": "Pitching Wedge",
+  "item.fligcraft_golf.sand_wedge": "Sand Wedge",
+  "item.fligcraft_golf.putter": "Putter",
+  "block.fligcraft_golf.golf_tee": "Golf Tee",
+  "block.fligcraft_golf.golf_flag": "Golf Flag",
+  "block.fligcraft_golf.fairway": "Fairway",
+  "block.fligcraft_golf.fairway_layer": "Fairway Layer",
+  "block.fligcraft_golf.rough": "Rough",
+  "block.fligcraft_golf.rough_layer": "Rough Layer",
+  "block.fligcraft_golf.putting_green": "Putting Green",
+  "itemGroup.fligcraft_golf": "Fligcraft - Golf"
+}
