@@ -22,6 +22,7 @@ import com.ziggleflig.golf.item.GolfBagItem;
 import com.ziggleflig.golf.item.GolfBallItem;
 import com.ziggleflig.golf.item.GolfBallTrackerItem;
 import com.ziggleflig.golf.item.GolfClubItem;
+import com.ziggleflig.golf.item.RangefinderItem;
 import com.ziggleflig.golf.network.GolfNetwork;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.registries.Registries;
@@ -125,6 +126,9 @@ public class GolfMod {
     public static final DeferredItem<Item> GOLF_BAG_ITEM = ITEMS.register("golf_bag",
             () -> new GolfBagItem(new Item.Properties().stacksTo(1)));
 
+    public static final DeferredItem<Item> RANGEFINDER = ITEMS.register("rangefinder",
+            () -> new RangefinderItem(new Item.Properties().stacksTo(1)));
+
     // Menus
     public static final DeferredHolder<MenuType<?>, MenuType<GolfBagMenu>> GOLF_BAG_MENU = MENU_TYPES.register("golf_bag",
             () -> IMenuTypeExtension.create((windowId, inv, data) -> {
@@ -146,6 +150,7 @@ public class GolfMod {
                 output.accept(PUTTER.get());
                 output.accept(GOLF_BALL.get());
                 output.accept(GOLF_BALL_TRACKER_ITEM.get());
+                output.accept(RANGEFINDER.get());
                 output.accept(GOLF_BAG_ITEM.get());
                 output.accept(GOLF_TEE_ITEM.get());
                 output.accept(GOLF_FLAG_ITEM.get());

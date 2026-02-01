@@ -3,7 +3,6 @@ package com.ziggleflig.golf.client;
 import java.util.Comparator;
 import java.util.List;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.ziggleflig.golf.entity.GolfBallEntity;
 import com.ziggleflig.golf.item.GolfClubItem;
 

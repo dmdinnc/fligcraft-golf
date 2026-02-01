@@ -240,6 +240,7 @@ public class GolfClubItem extends Item {
             horizontalDir.z * horizontalPower
         );
 
+        target.startGlowUntilNearby();
         float spinStrength = Math.min(1.0f, errorPercent / 100.0f);
         float maxSpin = 1.0f;
         target.setSpin(sliderPos * spinStrength * maxSpin);

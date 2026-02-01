@@ -6,6 +6,7 @@ license="${mod_license}"
 modId="${mod_id}"
 version="${mod_version}"
 displayName="${mod_name}"
+logoFile="logo.png"
 description='''
 Adds golf clubs, balls, tees, flags, a driving range bay, course blocks, and ball tracking tools.
 '''

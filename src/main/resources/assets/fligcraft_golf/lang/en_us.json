@@ -1,6 +1,7 @@
 {
   "item.fligcraft_golf.golf_ball": "Golf Ball",
   "item.fligcraft_golf.golf_ball_tracker": "Golf Ball Tracker",
+  "item.fligcraft_golf.rangefinder": "Rangefinder",
   "item.fligcraft_golf.driver": "Driver",
   "item.fligcraft_golf.hybrid": "Hybrid",
   "item.fligcraft_golf.iron": "Iron",
@@ -14,5 +15,6 @@
   "block.fligcraft_golf.rough": "Rough",
   "block.fligcraft_golf.rough_layer": "Rough Layer",
   "block.fligcraft_golf.putting_green": "Putting Green",
+  "block.fligcraft_golf.driving_range_bay": "Driving Range Bay",
   "itemGroup.fligcraft_golf": "Fligcraft - Golf"
 }

@@ -23,7 +23,7 @@ import net.minecraft.world.phys.Vec3;
 public class GolfBallEntity extends Entity implements ItemSupplier {
 
     // Hole detection tuning
-    private static final double HOLE_ROLLING_SPEED_THRESHOLD_SQR = 0.04D;
+    private static final double HOLE_ROLLING_SPEED_THRESHOLD_SQR = 0.16D;
     private static final double HOLE_AIR_SPEED_THRESHOLD_SQR = 0.5D;
     private static final double HOLE_STOPPED_SPEED_THRESHOLD_SQR = 0.0001D;
     private static final double HOLE_RADIUS = 2.5D / 16.0D;
@@ -45,6 +45,8 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     private boolean statsRecorded;
     private float lastShotErrorPercent;
     private float spin;
+    private boolean glowUntilNearby;
+    private int glowTimeoutTicks;
 
     // Client interpolation
     private double lerpX;
@@ -133,6 +135,12 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         return this.spin;
     }
 
+    public void startGlowUntilNearby() {
+        this.glowUntilNearby = true;
+        this.glowTimeoutTicks = 6000;
+        this.setGlowingTag(true);
+    }
+
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {
         this.strokes = tag.getInt("Strokes");
@@ -151,6 +159,14 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         this.statsRecorded = tag.getBoolean("StatsRecorded");
         this.lastShotErrorPercent = tag.getFloat("LastShotErrorPercent");
         this.spin = tag.getFloat("Spin");
+        this.glowUntilNearby = tag.getBoolean("GlowUntilNearby");
+        this.glowTimeoutTicks = tag.getInt("GlowTicks");
+        if (this.glowUntilNearby && this.glowTimeoutTicks <= 0) {
+            this.glowTimeoutTicks = 6000;
+        }
+        if (this.glowUntilNearby) {
+            this.setGlowingTag(true);
+        }
     }
 
     @Override
@@ -171,6 +187,8 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         tag.putBoolean("StatsRecorded", this.statsRecorded);
         tag.putFloat("LastShotErrorPercent", this.lastShotErrorPercent);
         tag.putFloat("Spin", this.spin);
+        tag.putBoolean("GlowUntilNearby", this.glowUntilNearby);
+        tag.putInt("GlowTicks", this.glowTimeoutTicks);
     }
 
     @Override
@@ -186,6 +204,8 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         if (updateDrivingRangeLifetime()) {
             return;
         }
+
+        updateGlowUntilNearby();
 
         Vec3 motion = this.getDeltaMovement();
         motion = applyGravity(motion);
@@ -272,6 +292,29 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         Vec3 sideways = new Vec3(-motion.z, 0.0D, motion.x).normalize();
         double curveStrength = this.spin * horizontalSpeed * 0.04D;
         return motion.add(sideways.scale(curveStrength));
+    }
+
+    private void updateGlowUntilNearby() {
+        if (!this.glowUntilNearby) {
+            return;
+        }
+
+        this.setGlowingTag(true);
+        Player hitter = getLastHitterPlayer();
+        if (hitter != null && hitter.distanceToSqr(this) <= 9.0D) {
+            this.glowUntilNearby = false;
+            this.glowTimeoutTicks = 0;
+            this.setGlowingTag(false);
+            return;
+        }
+
+        if (this.glowTimeoutTicks > 0) {
+            this.glowTimeoutTicks--;
+        }
+        if (this.glowTimeoutTicks <= 0) {
+            this.glowUntilNearby = false;
+            this.setGlowingTag(false);
+        }
     }
 
     private Vec3 handleWallCollisions(Vec3 posBefore, Vec3 motion) {
