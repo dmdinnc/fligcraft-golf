@@ -200,9 +200,17 @@ public class GolfClubItem extends Item {
         float yaw = shotData.yaw();
         
         float sliderPos = calculateSliderPosition(elapsedMs);
-        
+        float errorPercent = (1.0f - accuracy) * 100.0f;
+
+        float errorScale;
+        if (errorPercent <= 50.0f) {
+            errorScale = 0.1f * (errorPercent / 50.0f);
+        } else {
+            errorScale = 0.1f + (0.9f * ((errorPercent - 50.0f) / 50.0f));
+        }
+
         float maxErrorDegrees = 15.0f;
-        float errorDegrees = sliderPos * maxErrorDegrees;
+        float errorDegrees = sliderPos * maxErrorDegrees * errorScale;
         float adjustedYaw = yaw + errorDegrees;
         
         double yawRad = Math.toRadians(adjustedYaw);
@@ -232,7 +240,9 @@ public class GolfClubItem extends Item {
             horizontalDir.z * horizontalPower
         );
 
-        float errorPercent = (1.0f - accuracy) * 100.0f;
+        float spinStrength = Math.min(1.0f, errorPercent / 100.0f);
+        float maxSpin = 1.0f;
+        target.setSpin(sliderPos * spinStrength * maxSpin);
         target.setLastShotErrorPercent(errorPercent);
 
         target.setDeltaMovement(velocity);

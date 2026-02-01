@@ -44,6 +44,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     private double carryDistance;
     private boolean statsRecorded;
     private float lastShotErrorPercent;
+    private float spin;
 
     // Client interpolation
     private double lerpX;
@@ -124,6 +125,14 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         return this.lastShotErrorPercent;
     }
 
+    public void setSpin(float spin) {
+        this.spin = spin;
+    }
+
+    public float getSpin() {
+        return this.spin;
+    }
+
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {
         this.strokes = tag.getInt("Strokes");
@@ -141,6 +150,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         this.carryDistance = tag.getDouble("CarryDistance");
         this.statsRecorded = tag.getBoolean("StatsRecorded");
         this.lastShotErrorPercent = tag.getFloat("LastShotErrorPercent");
+        this.spin = tag.getFloat("Spin");
     }
 
     @Override
@@ -160,6 +170,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         tag.putDouble("CarryDistance", this.carryDistance);
         tag.putBoolean("StatsRecorded", this.statsRecorded);
         tag.putFloat("LastShotErrorPercent", this.lastShotErrorPercent);
+        tag.putFloat("Spin", this.spin);
     }
 
     @Override
@@ -179,6 +190,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         Vec3 motion = this.getDeltaMovement();
         motion = applyGravity(motion);
         motion = applyAirDrag(motion);
+        motion = applyMagnusEffect(motion);
 
         Vec3 posBefore = this.position();
         Vec3 velocityBeforeMove = motion;
@@ -245,6 +257,21 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
             return motion;
         }
         return motion.scale(0.97D);
+    }
+
+    private Vec3 applyMagnusEffect(Vec3 motion) {
+        if (this.onGround() || Math.abs(this.spin) < 0.001F) {
+            return motion;
+        }
+
+        double horizontalSpeed = Math.sqrt(motion.x * motion.x + motion.z * motion.z);
+        if (horizontalSpeed < 0.01D) {
+            return motion;
+        }
+
+        Vec3 sideways = new Vec3(-motion.z, 0.0D, motion.x).normalize();
+        double curveStrength = this.spin * horizontalSpeed * 0.04D;
+        return motion.add(sideways.scale(curveStrength));
     }
 
     private Vec3 handleWallCollisions(Vec3 posBefore, Vec3 motion) {
