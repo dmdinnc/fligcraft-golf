@@ -16,11 +16,12 @@ import com.ziggleflig.golf.client.GolfClient;
 import com.ziggleflig.golf.command.DeleteBallCommand;
 import com.ziggleflig.golf.command.DeleteAllMineCommand;
 import com.ziggleflig.golf.command.DeleteAllTrackedCommand;
+import com.ziggleflig.golf.command.GolfHelperManageCommand;
 import com.ziggleflig.golf.entity.GolfBallEntity;
 import com.ziggleflig.golf.inventory.GolfBagMenu;
 import com.ziggleflig.golf.item.GolfBagItem;
 import com.ziggleflig.golf.item.GolfBallItem;
-import com.ziggleflig.golf.item.GolfBallTrackerItem;
+import com.ziggleflig.golf.item.GolfHelperItem;
 import com.ziggleflig.golf.item.GolfClubItem;
 import com.ziggleflig.golf.item.RangefinderItem;
 import com.ziggleflig.golf.network.GolfNetwork;
@@ -120,8 +121,8 @@ public class GolfMod {
     public static final DeferredItem<Item> PUTTER = ITEMS.register("putter",
             () -> new GolfClubItem(new Item.Properties().stacksTo(1), 0.7D, 0.02D));
 
-    public static final DeferredItem<Item> GOLF_BALL_TRACKER_ITEM = ITEMS.register("golf_ball_tracker",
-            () -> new GolfBallTrackerItem(new Item.Properties().stacksTo(1)));
+    public static final DeferredItem<Item> GOLF_HELPER_ITEM = ITEMS.register("golf_helper",
+            () -> new GolfHelperItem(new Item.Properties().stacksTo(1)));
 
     public static final DeferredItem<Item> GOLF_BAG_ITEM = ITEMS.register("golf_bag",
             () -> new GolfBagItem(new Item.Properties().stacksTo(1)));
@@ -149,7 +150,7 @@ public class GolfMod {
                 output.accept(SAND_WEDGE.get());
                 output.accept(PUTTER.get());
                 output.accept(GOLF_BALL.get());
-                output.accept(GOLF_BALL_TRACKER_ITEM.get());
+                output.accept(GOLF_HELPER_ITEM.get());
                 output.accept(RANGEFINDER.get());
                 output.accept(GOLF_BAG_ITEM.get());
                 output.accept(GOLF_TEE_ITEM.get());
@@ -195,6 +196,7 @@ public class GolfMod {
         DeleteBallCommand.register(event.getDispatcher());
         DeleteAllMineCommand.register(event.getDispatcher());
         DeleteAllTrackedCommand.register(event.getDispatcher());
+        GolfHelperManageCommand.register(event.getDispatcher());
     }
 
     public static ResourceLocation id(String path) {

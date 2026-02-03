@@ -1,6 +1,0 @@
-{
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "fligcraft_golf:item/golf_ball_tracker"
-  }
-}

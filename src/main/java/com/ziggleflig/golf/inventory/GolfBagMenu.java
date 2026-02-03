@@ -110,7 +110,7 @@ public class GolfBagMenu extends AbstractContainerMenu {
                    stack.getItem() instanceof GolfBallItem ||
                    stack.is(GolfMod.GOLF_TEE_ITEM.get()) ||
                    stack.is(GolfMod.GOLF_FLAG_ITEM.get()) ||
-                   stack.is(GolfMod.GOLF_BALL_TRACKER_ITEM.get());
+                   stack.is(GolfMod.GOLF_HELPER_ITEM.get());
         }
     }
 }

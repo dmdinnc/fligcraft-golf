@@ -3,6 +3,7 @@ package com.ziggleflig.golf.entity;
 import java.util.UUID;
 
 import com.ziggleflig.golf.GolfMod;
+import com.ziggleflig.golf.GolfWind;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -18,6 +19,7 @@ import net.minecraft.world.entity.projectile.ItemSupplier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 
 public class GolfBallEntity extends Entity implements ItemSupplier {
@@ -30,6 +32,8 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     private static final double HOLE_RADIUS_SQR = HOLE_RADIUS * HOLE_RADIUS;
     private static final double HOLE_STOPPED_RADIUS = 1.0D;
     private static final double HOLE_STOPPED_RADIUS_SQR = HOLE_STOPPED_RADIUS * HOLE_STOPPED_RADIUS;
+    private static final double WIND_INFLUENCE = 0.025D;
+    private static final double GLOW_CHECK_SPEED_SQR = 0.0025D;
 
     private int strokes;
     private UUID lastHitter;
@@ -211,6 +215,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         motion = applyGravity(motion);
         motion = applyAirDrag(motion);
         motion = applyMagnusEffect(motion);
+        motion = applyWind(motion);
 
         Vec3 posBefore = this.position();
         Vec3 velocityBeforeMove = motion;
@@ -294,12 +299,42 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         return motion.add(sideways.scale(curveStrength));
     }
 
+    private Vec3 applyWind(Vec3 motion) {
+        if (this.onGround()) {
+            return motion;
+        }
+
+        int groundY = this.level().getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, this.getBlockX(), this.getBlockZ());
+        if (this.getY() <= groundY + 3.0D) {
+            return motion;
+        }
+
+        Vec3 windVelocity = GolfWind.getWindVelocity(this.level());
+        if (windVelocity.lengthSqr() < 1.0E-6D) {
+            return motion;
+        }
+
+        return motion.add(windVelocity.scale(WIND_INFLUENCE));
+    }
+
     private void updateGlowUntilNearby() {
         if (!this.glowUntilNearby) {
             return;
         }
 
         this.setGlowingTag(true);
+        Vec3 motion = this.getDeltaMovement();
+        if (!this.onGround() || motion.lengthSqr() > GLOW_CHECK_SPEED_SQR) {
+            if (this.glowTimeoutTicks > 0) {
+                this.glowTimeoutTicks--;
+            }
+            if (this.glowTimeoutTicks <= 0) {
+                this.glowUntilNearby = false;
+                this.setGlowingTag(false);
+            }
+            return;
+        }
+
         Player hitter = getLastHitterPlayer();
         if (hitter != null && hitter.distanceToSqr(this) <= 9.0D) {
             this.glowUntilNearby = false;

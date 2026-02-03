@@ -6,7 +6,9 @@
   "item.fligcraft_golf.pitching_wedge": "Pitching Wedge",
   "item.fligcraft_golf.sand_wedge": "Sand Wedge",
   "item.fligcraft_golf.putter": "Putter",
+  "item.fligcraft_golf.golf_helper": "Golf Helper",
   "block.fligcraft_golf.golf_tee": "Golf Tee",
   "block.fligcraft_golf.golf_flag": "Golf Flag",
+  "block.fligcraft_golf.driving_range_bay": "Driving Range Bay",
   "itemGroup.fligcraft_golf": "Fligcraft - Golf"
 }
