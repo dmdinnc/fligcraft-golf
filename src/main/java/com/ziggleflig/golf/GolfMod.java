@@ -23,6 +23,7 @@ import com.ziggleflig.golf.item.GolfBagItem;
 import com.ziggleflig.golf.item.GolfBallItem;
 import com.ziggleflig.golf.item.GolfHelperItem;
 import com.ziggleflig.golf.item.GolfClubItem;
+import com.ziggleflig.golf.item.LawnmowerItem;
 import com.ziggleflig.golf.item.RangefinderItem;
 import com.ziggleflig.golf.network.GolfNetwork;
 import com.mojang.logging.LogUtils;
@@ -108,6 +109,9 @@ public class GolfMod {
     public static final DeferredItem<Item> GOLF_BALL = ITEMS.register("golf_ball",
             () -> new GolfBallItem(new Item.Properties().stacksTo(16)));
 
+    public static final DeferredItem<Item> CLUB_SHAFT = ITEMS.register("club_shaft",
+            () -> new Item(new Item.Properties()));
+
     public static final DeferredItem<Item> DRIVER = ITEMS.register("driver",
             () -> new GolfClubItem(new Item.Properties().stacksTo(1), 4.9D, 0.35D));
     public static final DeferredItem<Item> HYBRID = ITEMS.register("hybrid",
@@ -119,10 +123,13 @@ public class GolfMod {
     public static final DeferredItem<Item> SAND_WEDGE = ITEMS.register("sand_wedge",
             () -> new GolfClubItem(new Item.Properties().stacksTo(1), 4.0D, 1.40D));
     public static final DeferredItem<Item> PUTTER = ITEMS.register("putter",
-            () -> new GolfClubItem(new Item.Properties().stacksTo(1), 0.7D, 0.02D));
+            () -> new GolfClubItem(new Item.Properties().stacksTo(1), 0.7D, 0.02D, true));
 
     public static final DeferredItem<Item> GOLF_HELPER_ITEM = ITEMS.register("golf_helper",
             () -> new GolfHelperItem(new Item.Properties().stacksTo(1)));
+
+    public static final DeferredItem<Item> LAWNMOWER = ITEMS.register("lawnmower",
+            () -> new LawnmowerItem(new Item.Properties().stacksTo(1).durability(5000)));
 
     public static final DeferredItem<Item> GOLF_BAG_ITEM = ITEMS.register("golf_bag",
             () -> new GolfBagItem(new Item.Properties().stacksTo(1)));
@@ -143,6 +150,7 @@ public class GolfMod {
             .title(Component.translatable("itemGroup.fligcraft_golf"))
             .icon(() -> GOLF_BALL.get().getDefaultInstance())
             .displayItems((parameters, output) -> {
+                output.accept(CLUB_SHAFT.get());
                 output.accept(DRIVER.get());
                 output.accept(HYBRID.get());
                 output.accept(IRON.get());
@@ -151,6 +159,7 @@ public class GolfMod {
                 output.accept(PUTTER.get());
                 output.accept(GOLF_BALL.get());
                 output.accept(GOLF_HELPER_ITEM.get());
+                output.accept(LAWNMOWER.get());
                 output.accept(RANGEFINDER.get());
                 output.accept(GOLF_BAG_ITEM.get());
                 output.accept(GOLF_TEE_ITEM.get());
@@ -220,6 +229,7 @@ public class GolfMod {
 
     private void addCreativeContents(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
+            event.accept(CLUB_SHAFT.get());
             event.accept(DRIVER.get());
             event.accept(HYBRID.get());
             event.accept(IRON.get());

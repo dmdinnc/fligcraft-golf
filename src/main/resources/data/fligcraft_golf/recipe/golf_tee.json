@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " S ",
+    " S ",
+    " P "
+  ],
+  "key": {
+    "S": { "item": "minecraft:stick" },
+    "P": { "tag": "minecraft:planks" }
+  },
+  "result": {
+    "id": "fligcraft_golf:golf_tee",
+    "count": 4
+  }
+}

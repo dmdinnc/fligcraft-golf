@@ -1,0 +1,11 @@
+{
+  "replace": false,
+  "values": [
+    "fligcraft_golf:driver",
+    "fligcraft_golf:hybrid",
+    "fligcraft_golf:iron",
+    "fligcraft_golf:pitching_wedge",
+    "fligcraft_golf:sand_wedge",
+    "fligcraft_golf:putter"
+  ]
+}

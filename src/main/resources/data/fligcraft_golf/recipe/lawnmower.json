@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "SCS",
+    "CHC",
+    " C "
+  ],
+  "key": {
+    "S": { "item": "minecraft:stick" },
+    "C": { "item": "minecraft:copper_ingot" },
+    "H": { "item": "minecraft:shears" }
+  },
+  "result": {
+    "id": "fligcraft_golf:lawnmower"
+  }
+}

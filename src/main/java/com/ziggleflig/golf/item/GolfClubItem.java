@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.ziggleflig.golf.GolfWind;
 import com.ziggleflig.golf.entity.GolfBallEntity;
 import com.ziggleflig.golf.network.ShotAccuracyPayload;
 
@@ -27,6 +28,8 @@ public class GolfClubItem extends Item {
 
     private final double basePower;
     private final double loft;
+    private final boolean isPutter;
+    private static final float CHIP_CHARGE_CUTOFF = 0.35F;
     
     public static final class ShotData {
         private final float charge;
@@ -62,9 +65,14 @@ public class GolfClubItem extends Item {
     private static final Map<UUID, ShotData> pendingShotsServer = new HashMap<>();
 
     public GolfClubItem(Properties properties, double basePower, double loft) {
+        this(properties, basePower, loft, false);
+    }
+
+    public GolfClubItem(Properties properties, double basePower, double loft, boolean isPutter) {
         super(properties);
         this.basePower = basePower;
         this.loft = loft;
+        this.isPutter = isPutter;
     }
 
     @Override
@@ -145,6 +153,28 @@ public class GolfClubItem extends Item {
         ShotData shotData = getPendingShots(level).get(player.getUUID());
         return shotData == null;
     }
+
+    @Override
+    public void onUseTick(Level level, LivingEntity livingEntity, ItemStack stack, int remainingUseDuration) {
+        if (level.isClientSide || !(livingEntity instanceof Player player)) {
+            return;
+        }
+
+        if (level.getGameTime() % 10 != 0) {
+            return;
+        }
+
+        if (findNearestBall(level, player) == null) {
+            return;
+        }
+
+        double windSpeed = GolfWind.getWindSpeedMph(level);
+        String windDirection = GolfWind.getWindDirectionText(level);
+        player.displayClientMessage(
+            Component.literal(String.format("Wind: %.1f mph %s", windSpeed, windDirection)),
+            true
+        );
+    }
     
     @Override
     public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
@@ -163,6 +193,15 @@ public class GolfClubItem extends Item {
                 pendingShotsClient.remove(player.getUUID());
             }
             return;
+        }
+
+        if (elapsed <= 6000 && level.getGameTime() % 10 == 0) {
+            double windSpeed = GolfWind.getWindSpeedMph(level);
+            String windDirection = GolfWind.getWindDirectionText(level);
+            player.displayClientMessage(
+                Component.literal(String.format("Wind: %.1f mph %s | Left-click to shoot!", windSpeed, windDirection)),
+                true
+            );
         }
 
         if (elapsed > 6000) {
@@ -185,8 +224,15 @@ public class GolfClubItem extends Item {
             return null;
         }
 
-        return balls.stream()
-                .min(Comparator.comparingDouble(b -> b.distanceToSqr(player)))
+        UUID playerId = player.getUUID();
+        List<GolfBallEntity> ownedBalls = balls.stream()
+                .filter(ball -> playerId.equals(ball.getLastHitter()))
+                .toList();
+
+        List<GolfBallEntity> candidates = ownedBalls.isEmpty() ? balls : ownedBalls;
+
+        return candidates.stream()
+                .min(Comparator.comparingDouble(ball -> ball.distanceToSqr(player)))
                 .orElse(null);
     }
     
@@ -217,7 +263,8 @@ public class GolfClubItem extends Item {
         Vec3 horizontalDir = new Vec3(-Math.sin(yawRad), 0, Math.cos(yawRad)).normalize();
         
         float charge = shotData.charge();
-        double basePowerCalc = this.basePower * (0.2D + 0.8D * charge);
+        float weightedCharge = applyWeightedCharge(charge);
+        double basePowerCalc = this.basePower * (0.2D + 0.8D * weightedCharge);
         
         double powerMultiplier = 0.7D + (0.3D * accuracy);
         double power = basePowerCalc * powerMultiplier;
@@ -245,6 +292,7 @@ public class GolfClubItem extends Item {
         float maxSpin = 1.0f;
         target.setSpin(sliderPos * spinStrength * maxSpin);
         target.setLastShotErrorPercent(errorPercent);
+        target.setPuttShot(this.isPutter);
 
         target.setDeltaMovement(velocity);
 
@@ -271,6 +319,20 @@ public class GolfClubItem extends Item {
         float sliderPos = calculateSliderPosition(elapsedMs);
         float distanceFromCenter = Math.abs(sliderPos);
         return 1.0f - distanceFromCenter;
+    }
+
+    private float applyWeightedCharge(float charge) {
+        if (charge <= 0.0f) {
+            return 0.0f;
+        }
+        if (charge >= 1.0f) {
+            return 1.0f;
+        }
+        if (charge <= CHIP_CHARGE_CUTOFF) {
+            float t = charge / CHIP_CHARGE_CUTOFF;
+            return CHIP_CHARGE_CUTOFF * t * t;
+        }
+        return charge;
     }
     
     public static ShotData getPendingShot(Player player) {

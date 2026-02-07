@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "item": "fligcraft_golf:club_shaft" },
+    { "item": "minecraft:clay_ball" }
+  ],
+  "result": {
+    "id": "fligcraft_golf:hybrid"
+  }
+}

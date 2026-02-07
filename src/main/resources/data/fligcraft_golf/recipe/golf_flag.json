@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "III",
+    " W ",
+    "   "
+  ],
+  "key": {
+    "I": { "item": "minecraft:iron_ingot" },
+    "W": { "item": "minecraft:red_wool" }
+  },
+  "result": {
+    "id": "fligcraft_golf:golf_flag",
+    "count": 3
+  }
+}

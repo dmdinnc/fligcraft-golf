@@ -32,7 +32,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     private static final double HOLE_RADIUS_SQR = HOLE_RADIUS * HOLE_RADIUS;
     private static final double HOLE_STOPPED_RADIUS = 1.0D;
     private static final double HOLE_STOPPED_RADIUS_SQR = HOLE_STOPPED_RADIUS * HOLE_STOPPED_RADIUS;
-    private static final double WIND_INFLUENCE = 0.025D;
+    private static final double WIND_INFLUENCE = 0.0125D;
     private static final double GLOW_CHECK_SPEED_SQR = 0.0025D;
 
     private int strokes;
@@ -51,6 +51,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     private float spin;
     private boolean glowUntilNearby;
     private int glowTimeoutTicks;
+    private boolean puttShot;
 
     // Client interpolation
     private double lerpX;
@@ -135,6 +136,10 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         this.spin = spin;
     }
 
+    public void setPuttShot(boolean puttShot) {
+        this.puttShot = puttShot;
+    }
+
     public float getSpin() {
         return this.spin;
     }
@@ -163,6 +168,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         this.statsRecorded = tag.getBoolean("StatsRecorded");
         this.lastShotErrorPercent = tag.getFloat("LastShotErrorPercent");
         this.spin = tag.getFloat("Spin");
+        this.puttShot = tag.getBoolean("PuttShot");
         this.glowUntilNearby = tag.getBoolean("GlowUntilNearby");
         this.glowTimeoutTicks = tag.getInt("GlowTicks");
         if (this.glowUntilNearby && this.glowTimeoutTicks <= 0) {
@@ -191,6 +197,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         tag.putBoolean("StatsRecorded", this.statsRecorded);
         tag.putFloat("LastShotErrorPercent", this.lastShotErrorPercent);
         tag.putFloat("Spin", this.spin);
+        tag.putBoolean("PuttShot", this.puttShot);
         tag.putBoolean("GlowUntilNearby", this.glowUntilNearby);
         tag.putInt("GlowTicks", this.glowTimeoutTicks);
     }
@@ -243,6 +250,9 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     }
 
     private void spawnTrailParticles() {
+        if (this.puttShot) {
+            return;
+        }
         Vec3 velocity = this.getDeltaMovement();
         double speed = velocity.lengthSqr();
         if (speed > 0.01D) {
@@ -432,7 +442,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         String path = key.getPath();
 
         if (path.contains("putting_green")) {
-            return 0.95D;
+            return 0.93D;
         }
 
         if (path.contains("fairway")) {
@@ -543,10 +553,31 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
                         Component.literal("Ball in the hole in " + hits + " hits."),
                         false
                 );
+                grantGolfBalls(player, 1);
             }
         }
 
         this.discard();
+    }
+
+    private void grantGolfBalls(Player player, int count) {
+        if (count <= 0) {
+            return;
+        }
+
+        ItemStack ballStack = new ItemStack(GolfMod.GOLF_BALL.get());
+        int maxStack = ballStack.getMaxStackSize();
+        int remaining = count;
+
+        while (remaining > 0) {
+            int stackCount = Math.min(remaining, maxStack);
+            ItemStack stack = ballStack.copy();
+            stack.setCount(stackCount);
+            if (!player.addItem(stack)) {
+                player.drop(stack, false);
+            }
+            remaining -= stackCount;
+        }
     }
 
     private Player getLastHitterPlayer() {
