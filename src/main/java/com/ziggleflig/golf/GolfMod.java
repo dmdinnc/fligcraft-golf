@@ -12,15 +12,19 @@ import com.ziggleflig.golf.block.RoughBlock;
 import com.ziggleflig.golf.block.RoughLayerBlock;
 import com.ziggleflig.golf.client.GolfBagScreen;
 import com.ziggleflig.golf.client.GolfBallRenderer;
+import com.ziggleflig.golf.client.GolfCartRenderer;
 import com.ziggleflig.golf.client.GolfClient;
 import com.ziggleflig.golf.command.DeleteBallCommand;
 import com.ziggleflig.golf.command.DeleteAllMineCommand;
 import com.ziggleflig.golf.command.DeleteAllTrackedCommand;
 import com.ziggleflig.golf.command.GolfHelperManageCommand;
 import com.ziggleflig.golf.entity.GolfBallEntity;
+import com.ziggleflig.golf.entity.GolfCartEntity;
+import com.ziggleflig.golf.entity.GolfCartModel;
 import com.ziggleflig.golf.inventory.GolfBagMenu;
 import com.ziggleflig.golf.item.GolfBagItem;
 import com.ziggleflig.golf.item.GolfBallItem;
+import com.ziggleflig.golf.item.GolfCartItem;
 import com.ziggleflig.golf.item.GolfHelperItem;
 import com.ziggleflig.golf.item.GolfClubItem;
 import com.ziggleflig.golf.item.LawnmowerItem;
@@ -97,6 +101,13 @@ public class GolfMod {
                     .updateInterval(1)
                     .build(ResourceLocation.fromNamespaceAndPath(MODID, "golf_ball").toString()));
 
+    public static final DeferredHolder<EntityType<?>, EntityType<GolfCartEntity>> GOLF_CART_ENTITY = ENTITY_TYPES.register("golf_cart",
+            () -> EntityType.Builder.<GolfCartEntity>of(GolfCartEntity::new, MobCategory.MISC)
+                    .sized(1.5F, 1.2F)
+                    .clientTrackingRange(10)
+                    .updateInterval(1)
+                    .build(ResourceLocation.fromNamespaceAndPath(MODID, "golf_cart").toString()));
+
     // Items
     public static final DeferredItem<BlockItem> GOLF_TEE_ITEM = ITEMS.registerSimpleBlockItem("golf_tee", GOLF_TEE_BLOCK);
     public static final DeferredItem<BlockItem> GOLF_FLAG_ITEM = ITEMS.registerSimpleBlockItem("golf_flag", GOLF_FLAG_BLOCK);
@@ -108,6 +119,9 @@ public class GolfMod {
     public static final DeferredItem<BlockItem> ROUGH_LAYER_ITEM = ITEMS.registerSimpleBlockItem("rough_layer", ROUGH_LAYER_BLOCK);
     public static final DeferredItem<Item> GOLF_BALL = ITEMS.register("golf_ball",
             () -> new GolfBallItem(new Item.Properties().stacksTo(16)));
+
+    public static final DeferredItem<Item> GOLF_CART_ITEM = ITEMS.register("golf_cart",
+            () -> new GolfCartItem(new Item.Properties().stacksTo(1)));
 
     public static final DeferredItem<Item> CLUB_SHAFT = ITEMS.register("club_shaft",
             () -> new Item(new Item.Properties()));
@@ -158,6 +172,7 @@ public class GolfMod {
                 output.accept(SAND_WEDGE.get());
                 output.accept(PUTTER.get());
                 output.accept(GOLF_BALL.get());
+                output.accept(GOLF_CART_ITEM.get());
                 output.accept(GOLF_HELPER_ITEM.get());
                 output.accept(LAWNMOWER.get());
                 output.accept(RANGEFINDER.get());
@@ -217,10 +232,15 @@ public class GolfMod {
                 GOLF_BALL_ENTITY.get(),
                 GolfBallRenderer::new
         );
+        event.registerEntityRenderer(
+                GOLF_CART_ENTITY.get(),
+                GolfCartRenderer::new
+        );
     }
 
     private static void registerLayerDefinitions(net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterLayerDefinitions event) {
         event.registerLayerDefinition(GolfBallRenderer.LAYER_LOCATION, GolfBallRenderer.GolfBallModel::createBodyLayer);
+        event.registerLayerDefinition(GolfCartModel.LAYER_LOCATION, GolfCartModel::createBodyLayer);
     }
     
     private static void registerScreens(net.neoforged.neoforge.client.event.RegisterMenuScreensEvent event) {
@@ -237,6 +257,7 @@ public class GolfMod {
             event.accept(SAND_WEDGE.get());
             event.accept(PUTTER.get());
             event.accept(GOLF_BALL.get());
+            event.accept(GOLF_CART_ITEM.get());
         }
     }
 

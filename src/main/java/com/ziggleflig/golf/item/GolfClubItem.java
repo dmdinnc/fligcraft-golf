@@ -6,10 +6,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.ziggleflig.golf.GolfModConfig;
 import com.ziggleflig.golf.GolfWind;
 import com.ziggleflig.golf.entity.GolfBallEntity;
 import com.ziggleflig.golf.network.ShotAccuracyPayload;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.InteractionHand;
@@ -20,6 +23,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -278,6 +283,8 @@ public class GolfClubItem extends Item {
             );
         }
 
+        power *= getSurfacePowerMultiplier(player.level(), target);
+
         double horizontalPower = power * Math.cos(this.loft);
         double verticalPower = power * Math.sin(this.loft);
 
@@ -304,12 +311,37 @@ public class GolfClubItem extends Item {
     }
     
     private float calculateSliderPosition(long elapsedMs) {
-        float cycleTime = (elapsedMs % 2000) / 2000.0f;
+        int cycleMs = Math.max(1, GolfModConfig.COMMON.accuracyMeterCycleMs.get());
+        float cycleTime = (elapsedMs % cycleMs) / (float) cycleMs;
         if (cycleTime < 0.5f) {
             return (cycleTime * 4.0f) - 1.0f;
         } else {
             return 3.0f - (cycleTime * 4.0f);
         }
+    }
+
+    private double getSurfacePowerMultiplier(Level level, GolfBallEntity target) {
+        if (target.isInWaterOrBubble() || level.getFluidState(target.blockPosition()).is(Fluids.WATER)) {
+            return 0.3D;
+        }
+
+        BlockPos below = target.blockPosition().below();
+        BlockState state = level.getBlockState(below);
+        String path = BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath();
+
+        if (path.contains("rough")) {
+            return 0.85D;
+        }
+
+        if (path.contains("fairway") || path.contains("putting_green")) {
+            return 1.0D;
+        }
+
+        if (path.contains("sand") || path.contains("gravel")) {
+            return 0.5D;
+        }
+
+        return 0.7D;
     }
     
     private float calculateAccuracy(long elapsedMs) {

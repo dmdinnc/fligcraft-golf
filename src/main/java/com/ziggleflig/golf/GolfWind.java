@@ -10,7 +10,6 @@ public final class GolfWind {
     private static final double DIRECTION_CYCLE_TICKS = 16000.0D;
     private static final double DIRECTION_WOBBLE_TICKS = 5000.0D;
     private static final double DIRECTION_WOBBLE_RADIANS = Math.toRadians(25.0D);
-    private static final long WIND_UPDATE_TICKS = 20L * 15L;
 
     private GolfWind() {
     }
@@ -66,7 +65,8 @@ public final class GolfWind {
 
     private static double getSampledTime(Level level) {
         long time = level.getGameTime();
-        long snapped = (time / WIND_UPDATE_TICKS) * WIND_UPDATE_TICKS;
+        long updateTicks = Math.max(1L, 20L * GolfModConfig.COMMON.windUpdateSeconds.get());
+        long snapped = (time / updateTicks) * updateTicks;
         return (double) snapped;
     }
 }

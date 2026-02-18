@@ -3,6 +3,7 @@ package com.ziggleflig.golf.entity;
 import java.util.UUID;
 
 import com.ziggleflig.golf.GolfMod;
+import com.ziggleflig.golf.GolfModConfig;
 import com.ziggleflig.golf.GolfWind;
 
 import net.minecraft.core.BlockPos;
@@ -34,6 +35,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     private static final double HOLE_STOPPED_RADIUS_SQR = HOLE_STOPPED_RADIUS * HOLE_STOPPED_RADIUS;
     private static final double WIND_INFLUENCE = 0.0125D;
     private static final double GLOW_CHECK_SPEED_SQR = 0.0025D;
+    private static final double WATER_STOP_SPEED_SQR = 0.0004D;
 
     private int strokes;
     private UUID lastHitter;
@@ -52,6 +54,10 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     private boolean glowUntilNearby;
     private int glowTimeoutTicks;
     private boolean puttShot;
+    private boolean hasLastHitPosition;
+    private double lastHitX;
+    private double lastHitY;
+    private double lastHitZ;
 
     // Client interpolation
     private double lerpX;
@@ -76,6 +82,10 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     public void registerStroke(Player player) {
         this.strokes++;
         this.lastHitter = player.getUUID();
+        this.lastHitX = this.getX();
+        this.lastHitY = this.getY();
+        this.lastHitZ = this.getZ();
+        this.hasLastHitPosition = true;
 
         if (this.isDrivingRangeBall && this.drivingRangeLifetime == 0) {
             this.drivingRangeLifetime = 600;
@@ -169,6 +179,10 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         this.lastShotErrorPercent = tag.getFloat("LastShotErrorPercent");
         this.spin = tag.getFloat("Spin");
         this.puttShot = tag.getBoolean("PuttShot");
+        this.hasLastHitPosition = tag.getBoolean("HasLastHitPosition");
+        this.lastHitX = tag.getDouble("LastHitX");
+        this.lastHitY = tag.getDouble("LastHitY");
+        this.lastHitZ = tag.getDouble("LastHitZ");
         this.glowUntilNearby = tag.getBoolean("GlowUntilNearby");
         this.glowTimeoutTicks = tag.getInt("GlowTicks");
         if (this.glowUntilNearby && this.glowTimeoutTicks <= 0) {
@@ -198,6 +212,10 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         tag.putFloat("LastShotErrorPercent", this.lastShotErrorPercent);
         tag.putFloat("Spin", this.spin);
         tag.putBoolean("PuttShot", this.puttShot);
+        tag.putBoolean("HasLastHitPosition", this.hasLastHitPosition);
+        tag.putDouble("LastHitX", this.lastHitX);
+        tag.putDouble("LastHitY", this.lastHitY);
+        tag.putDouble("LastHitZ", this.lastHitZ);
         tag.putBoolean("GlowUntilNearby", this.glowUntilNearby);
         tag.putInt("GlowTicks", this.glowTimeoutTicks);
     }
@@ -235,6 +253,8 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         if (this.onGround()) {
             handleGroundInteraction(velocityBeforeMove);
         }
+
+        maybeReturnFromWater();
     }
 
     private void handleClientLerp() {
@@ -415,6 +435,23 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
 
         maybeDisplayDrivingRangeStats();
         checkForHole();
+    }
+
+    private void maybeReturnFromWater() {
+        if (!GolfModConfig.COMMON.returnBallFromWater.get()) {
+            return;
+        }
+
+        if (!this.hasLastHitPosition || !this.isInWaterOrBubble()) {
+            return;
+        }
+
+        if (this.getDeltaMovement().lengthSqr() > WATER_STOP_SPEED_SQR) {
+            return;
+        }
+
+        this.setDeltaMovement(Vec3.ZERO);
+        this.setPos(this.lastHitX, this.lastHitY, this.lastHitZ);
     }
 
     private void recordCarryDistance() {

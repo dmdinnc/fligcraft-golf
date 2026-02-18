@@ -1,6 +1,7 @@
 package com.ziggleflig.golf.client;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.ziggleflig.golf.GolfModConfig;
 import com.ziggleflig.golf.item.GolfClubItem;
 
 import net.minecraft.client.DeltaTracker;
@@ -41,7 +42,8 @@ public class GolfAccuracyOverlay implements LayeredDraw.Layer {
     }
     
     private float calculateSliderPosition(long elapsedMs) {
-        float cycleTime = (elapsedMs % 2000) / 2000.0f;
+        int cycleMs = Math.max(1, GolfModConfig.COMMON.accuracyMeterCycleMs.get());
+        float cycleTime = (elapsedMs % cycleMs) / (float) cycleMs;
         if (cycleTime < 0.5f) {
             return (cycleTime * 4.0f) - 1.0f;
         } else {
