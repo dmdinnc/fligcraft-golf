@@ -18,6 +18,7 @@ import com.ziggleflig.golf.command.DeleteBallCommand;
 import com.ziggleflig.golf.command.DeleteAllMineCommand;
 import com.ziggleflig.golf.command.DeleteAllTrackedCommand;
 import com.ziggleflig.golf.command.GolfHelperManageCommand;
+import com.ziggleflig.golf.command.GolfClubsCommand;
 import com.ziggleflig.golf.entity.GolfBallEntity;
 import com.ziggleflig.golf.entity.GolfCartEntity;
 import com.ziggleflig.golf.entity.GolfCartModel;
@@ -207,6 +208,8 @@ public class GolfMod {
         NeoForge.EVENT_BUS.register(this);
 
         modContainer.registerConfig(ModConfig.Type.COMMON, GolfModConfig.SPEC);
+        NeoForge.EVENT_BUS.addListener(GolfClubConfig::onServerAboutToStart);
+        NeoForge.EVENT_BUS.addListener(GolfClubConfig::onServerStopped);
 
         modEventBus.addListener(this::addCreativeContents);
     }
@@ -221,6 +224,7 @@ public class GolfMod {
         DeleteAllMineCommand.register(event.getDispatcher());
         DeleteAllTrackedCommand.register(event.getDispatcher());
         GolfHelperManageCommand.register(event.getDispatcher());
+        GolfClubsCommand.register(event.getDispatcher());
     }
 
     public static ResourceLocation id(String path) {
