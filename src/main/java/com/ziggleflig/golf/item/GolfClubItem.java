@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.ziggleflig.golf.GolfModConfig;
+import com.ziggleflig.golf.GolfClubConfig;
 import com.ziggleflig.golf.GolfWind;
 import com.ziggleflig.golf.entity.GolfBallEntity;
 import com.ziggleflig.golf.network.ShotAccuracyPayload;
@@ -269,7 +270,9 @@ public class GolfClubItem extends Item {
         
         float charge = shotData.charge();
         float weightedCharge = applyWeightedCharge(charge);
-        double basePowerCalc = this.basePower * (0.2D + 0.8D * weightedCharge);
+        double clubMultiplier = GolfClubConfig.forServer(player.level().getServer())
+            .effectiveMultiplier(BuiltInRegistries.ITEM.getKey(this).getPath());
+        double basePowerCalc = this.basePower * clubMultiplier * (0.2D + 0.8D * weightedCharge);
         
         double powerMultiplier = 0.7D + (0.3D * accuracy);
         double power = basePowerCalc * powerMultiplier;
