@@ -12,6 +12,7 @@ import com.ziggleflig.golf.block.RoughBlock;
 import com.ziggleflig.golf.block.RoughLayerBlock;
 import com.ziggleflig.golf.client.GolfBagScreen;
 import com.ziggleflig.golf.client.GolfBallRenderer;
+import com.ziggleflig.golf.client.GolfBallTrackerScreen;
 import com.ziggleflig.golf.client.GolfCartRenderer;
 import com.ziggleflig.golf.client.GolfClient;
 import com.ziggleflig.golf.command.DeleteBallCommand;
@@ -23,6 +24,10 @@ import com.ziggleflig.golf.entity.GolfBallEntity;
 import com.ziggleflig.golf.entity.GolfCartEntity;
 import com.ziggleflig.golf.entity.GolfCartModel;
 import com.ziggleflig.golf.inventory.GolfBagMenu;
+import com.ziggleflig.golf.inventory.GolfBallTrackerMenu;
+import com.ziggleflig.golf.recipe.GolfBallDyeRecipe;
+import com.ziggleflig.golf.tracker.GolfBallLocator;
+import com.ziggleflig.golf.tracker.GolfBallTracking;
 import com.ziggleflig.golf.item.GolfBagItem;
 import com.ziggleflig.golf.item.GolfBallItem;
 import com.ziggleflig.golf.item.GolfCartItem;
@@ -44,6 +49,9 @@ import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
@@ -73,6 +81,9 @@ public class GolfMod {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
     public static final DeferredRegister<EntityType<?>> ENTITY_TYPES = DeferredRegister.create(Registries.ENTITY_TYPE, MODID);
     public static final DeferredRegister<MenuType<?>> MENU_TYPES = DeferredRegister.create(Registries.MENU, MODID);
+    public static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS = DeferredRegister.create(Registries.RECIPE_SERIALIZER, MODID);
+    public static final DeferredHolder<RecipeSerializer<?>, SimpleCraftingRecipeSerializer<GolfBallDyeRecipe>> GOLF_BALL_DYE_RECIPE =
+        RECIPE_SERIALIZERS.register("golf_ball_dye", () -> new SimpleCraftingRecipeSerializer<>(GolfBallDyeRecipe::new));
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
 
     public static final DeferredBlock<Block> GOLF_TEE_BLOCK = BLOCKS.register("golf_tee", 
@@ -159,6 +170,8 @@ public class GolfMod {
                 ItemStack bagStack = isMainHand ? inv.player.getMainHandItem() : inv.player.getOffhandItem();
                 return new GolfBagMenu(windowId, inv, bagStack);
             }));
+    public static final DeferredHolder<MenuType<?>, MenuType<GolfBallTrackerMenu>> GOLF_BALL_TRACKER_MENU = MENU_TYPES.register("golf_ball_tracker",
+        () -> IMenuTypeExtension.create((id, inventory, data) -> new GolfBallTrackerMenu(id, inventory)));
 
     // Creative tab
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> GOLF_TAB = CREATIVE_MODE_TABS.register("golf_tab", () -> CreativeModeTab.builder()
@@ -172,7 +185,11 @@ public class GolfMod {
                 output.accept(PITCHING_WEDGE.get());
                 output.accept(SAND_WEDGE.get());
                 output.accept(PUTTER.get());
-                output.accept(GOLF_BALL.get());
+                for (DyeColor color : DyeColor.values()) {
+                    ItemStack ball = GOLF_BALL.get().getDefaultInstance();
+                    GolfBallItem.setColor(ball, color);
+                    output.accept(ball);
+                }
                 output.accept(GOLF_CART_ITEM.get());
                 output.accept(GOLF_HELPER_ITEM.get());
                 output.accept(LAWNMOWER.get());
@@ -197,12 +214,14 @@ public class GolfMod {
             modEventBus.addListener(GolfMod::registerLayerDefinitions);
             modEventBus.addListener(GolfMod::registerScreens);
             modEventBus.addListener(GolfClient::registerGuiLayers);
+            modEventBus.addListener(GolfClient::registerItemColors);
         }
 
         BLOCKS.register(modEventBus);
         ITEMS.register(modEventBus);
         ENTITY_TYPES.register(modEventBus);
         MENU_TYPES.register(modEventBus);
+        RECIPE_SERIALIZERS.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
 
         NeoForge.EVENT_BUS.register(this);
@@ -210,6 +229,11 @@ public class GolfMod {
         modContainer.registerConfig(ModConfig.Type.COMMON, GolfModConfig.SPEC);
         NeoForge.EVENT_BUS.addListener(GolfClubConfig::onServerAboutToStart);
         NeoForge.EVENT_BUS.addListener(GolfClubConfig::onServerStopped);
+        NeoForge.EVENT_BUS.addListener(GolfBallLocator::onPlayerTick);
+        NeoForge.EVENT_BUS.addListener(GolfBallLocator::onLogout);
+        NeoForge.EVENT_BUS.addListener(GolfBallLocator::onServerStopped);
+        NeoForge.EVENT_BUS.addListener(GolfBallTracking::onJoin);
+        NeoForge.EVENT_BUS.addListener(GolfBallTracking::onLeave);
 
         modEventBus.addListener(this::addCreativeContents);
     }
@@ -249,6 +273,7 @@ public class GolfMod {
     
     private static void registerScreens(net.neoforged.neoforge.client.event.RegisterMenuScreensEvent event) {
         event.register(GOLF_BAG_MENU.get(), GolfBagScreen::new);
+        event.register(GOLF_BALL_TRACKER_MENU.get(), GolfBallTrackerScreen::new);
     }
 
     private void addCreativeContents(BuildCreativeModeTabContentsEvent event) {

@@ -5,6 +5,10 @@ import com.ziggleflig.golf.entity.GolfBallEntity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.context.UseOnContext;
@@ -15,6 +19,24 @@ public class GolfBallItem extends Item {
 
     public GolfBallItem(Properties properties) {
         super(properties);
+    }
+
+    public static DyeColor getColor(ItemStack stack) {
+        return stack.getOrDefault(DataComponents.BASE_COLOR, DyeColor.WHITE);
+    }
+
+    public static void setColor(ItemStack stack, DyeColor color) {
+        // Keep white identical to legacy/default balls so they still stack together.
+        if (color == DyeColor.WHITE) {
+            stack.remove(DataComponents.BASE_COLOR);
+        } else {
+            stack.set(DataComponents.BASE_COLOR, color);
+        }
+    }
+
+    @Override
+    public Component getName(ItemStack stack) {
+        return Component.translatable("item.fligcraft_golf.golf_ball." + getColor(stack).getName());
     }
 
     @Override
@@ -35,6 +57,7 @@ public class GolfBallItem extends Item {
         Vec3 spawnPos = Vec3.atCenterOf(pos).add(0.0D, 0.625D, 0.0D);
 
         GolfBallEntity ball = new GolfBallEntity(GolfMod.GOLF_BALL_ENTITY.get(), level);
+        ball.setColor(getColor(context.getItemInHand()));
         ball.setPos(spawnPos.x, spawnPos.y, spawnPos.z);
         
         if (context.getPlayer() != null) {

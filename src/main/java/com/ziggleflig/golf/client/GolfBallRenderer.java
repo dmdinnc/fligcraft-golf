@@ -51,7 +51,7 @@ public class GolfBallRenderer extends EntityRenderer<GolfBallEntity> {
         
         VertexConsumer vertexConsumer = buffer.getBuffer(RenderType.entityCutout(TEXTURE));
         this.model.renderToBuffer(poseStack, vertexConsumer, packedLight, 
-                                  OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
+                                  OverlayTexture.NO_OVERLAY, 0xFF000000 | entity.getColor().getTextureDiffuseColor());
         
         poseStack.popPose();
         super.render(entity, entityYaw, partialTicks, poseStack, buffer, packedLight);
