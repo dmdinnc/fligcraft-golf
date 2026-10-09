@@ -2,7 +2,6 @@ package com.ziggleflig.golf.command;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
-import com.ziggleflig.golf.GolfMod;
 import com.ziggleflig.golf.entity.GolfBallEntity;
 
 import net.minecraft.ChatFormatting;
@@ -11,7 +10,6 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 
@@ -50,10 +48,8 @@ public class DeleteAllMineCommand {
         int count = playerBalls.size();
         
         for (GolfBallEntity ball : playerBalls) {
-            ball.discard();
+            ball.returnToPlayer(player);
         }
-
-        grantGolfBalls(player, count);
 
         player.displayClientMessage(
             Component.literal("Deleted " + count + " golf ball(s) and returned them to your inventory.")
@@ -64,23 +60,4 @@ public class DeleteAllMineCommand {
         return count;
     }
 
-    private static void grantGolfBalls(Player player, int count) {
-        if (count <= 0) {
-            return;
-        }
-
-        ItemStack ballStack = new ItemStack(GolfMod.GOLF_BALL.get());
-        int maxStack = ballStack.getMaxStackSize();
-        int remaining = count;
-
-        while (remaining > 0) {
-            int stackCount = Math.min(remaining, maxStack);
-            ItemStack stack = ballStack.copy();
-            stack.setCount(stackCount);
-            if (!player.addItem(stack)) {
-                player.drop(stack, false);
-            }
-            remaining -= stackCount;
-        }
-    }
 }

@@ -5,18 +5,25 @@ import java.util.UUID;
 import com.ziggleflig.golf.GolfMod;
 import com.ziggleflig.golf.GolfModConfig;
 import com.ziggleflig.golf.GolfWind;
+import com.ziggleflig.golf.item.GolfBallItem;
+import com.ziggleflig.golf.tracker.GolfBallTrackerData;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.world.entity.projectile.ItemSupplier;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -24,6 +31,8 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 
 public class GolfBallEntity extends Entity implements ItemSupplier {
+    private static final EntityDataAccessor<Integer> COLOR = SynchedEntityData.defineId(
+        GolfBallEntity.class, EntityDataSerializers.INT);
 
     // Hole detection tuning
     private static final double HOLE_ROLLING_SPEED_THRESHOLD_SQR = 0.16D;
@@ -39,6 +48,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
 
     private int strokes;
     private UUID lastHitter;
+    private boolean registeredForTracking;
     private boolean onTee;
     private boolean isDrivingRangeBall;
     private int drivingRangeLifetime;
@@ -96,6 +106,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
             this.hasBouncedOnce = false;
             this.statsRecorded = false;
         }
+        updateTracking();
     }
 
     public UUID getLastHitter() {
@@ -104,6 +115,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     
     public void setLastHitter(UUID uuid) {
         this.lastHitter = uuid;
+        updateTracking();
     }
 
     public int getStrokes() {
@@ -111,7 +123,21 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     }
 
     @Override
-    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        builder.define(COLOR, DyeColor.WHITE.getId());
+    }
+
+    public DyeColor getColor() {
+        return DyeColor.byId(this.entityData.get(COLOR));
+    }
+
+    public void setColor(DyeColor color) {
+        this.entityData.set(COLOR, color.getId());
+    }
+
+    @Override
+    public int getTeamColor() {
+        return getColor().getTextColor();
     }
 
     public void setOnTee(boolean onTee) {
@@ -162,6 +188,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
 
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {
+        setColor(tag.contains("BallColor") ? DyeColor.byId(tag.getInt("BallColor")) : DyeColor.WHITE);
         this.strokes = tag.getInt("Strokes");
         if (tag.hasUUID("LastHitter")) {
             this.lastHitter = tag.getUUID("LastHitter");
@@ -195,6 +222,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
 
     @Override
     protected void addAdditionalSaveData(CompoundTag tag) {
+        tag.putInt("BallColor", getColor().getId());
         tag.putInt("Strokes", this.strokes);
         if (this.lastHitter != null) {
             tag.putUUID("LastHitter", this.lastHitter);
@@ -218,6 +246,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         tag.putDouble("LastHitZ", this.lastHitZ);
         tag.putBoolean("GlowUntilNearby", this.glowUntilNearby);
         tag.putInt("GlowTicks", this.glowTimeoutTicks);
+        updateTracking();
     }
 
     @Override
@@ -227,6 +256,12 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         spawnTrailParticles();
 
         if (this.level().isClientSide) {
+            return;
+        }
+
+        // An entity can briefly remain in memory while its chunk becomes inaccessible.
+        if (this.level() instanceof ServerLevel serverLevel && GolfBallTrackerData.get(serverLevel).isDeleted(this.getUUID())) {
+            this.discard();
             return;
         }
 
@@ -255,6 +290,21 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         }
 
         maybeReturnFromWater();
+        if (this.tickCount % 20 == 0) { updateTracking(); }
+    }
+
+    private void updateTracking() {
+        if (this.registeredForTracking && this.level() instanceof ServerLevel serverLevel) {
+            GolfBallTrackerData.get(serverLevel).track(this);
+        }
+    }
+
+    @Override
+    public void onAddedToLevel() {
+        super.onAddedToLevel();
+        // NeoForge's isAddedToLevel can reset during a temporary chunk visibility change.
+        this.registeredForTracking = true;
+        updateTracking();
     }
 
     private void handleClientLerp() {
@@ -602,7 +652,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
             return;
         }
 
-        ItemStack ballStack = new ItemStack(GolfMod.GOLF_BALL.get());
+        ItemStack ballStack = getItem();
         int maxStack = ballStack.getMaxStackSize();
         int remaining = count;
 
@@ -648,6 +698,16 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
 
     @Override
     public ItemStack getItem() {
-        return GolfMod.GOLF_BALL.get().getDefaultInstance();
+        ItemStack stack = GolfMod.GOLF_BALL.get().getDefaultInstance();
+        GolfBallItem.setColor(stack, getColor());
+        return stack;
+    }
+
+    public void returnToPlayer(Player player) {
+        ItemStack stack = getItem();
+        discard();
+        if (!player.addItem(stack)) {
+            player.drop(stack, false);
+        }
     }
 }

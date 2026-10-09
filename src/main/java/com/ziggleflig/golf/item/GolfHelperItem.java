@@ -2,10 +2,10 @@ package com.ziggleflig.golf.item;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import com.ziggleflig.golf.GolfMod;
 import com.ziggleflig.golf.GolfWind;
+import com.ziggleflig.golf.inventory.GolfBallTrackerMenu;
 import com.ziggleflig.golf.entity.GolfBallEntity;
 
 import net.minecraft.ChatFormatting;
@@ -13,6 +13,7 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
@@ -35,25 +36,14 @@ public class GolfHelperItem extends Item {
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
-        ItemStack stack = player.getItemInHand(hand);
-
-        if (level.isClientSide) {
-            return InteractionResultHolder.success(stack);
-        }
-
-        List<GolfBallEntity> playerBalls = getPlayerBalls(level, player);
-
-        if (player.isShiftKeyDown()) {
-            if (playerBalls.isEmpty()) {
-                showNoBallsMessage(player);
+        if (player instanceof ServerPlayer serverPlayer) {
+            if (player.isShiftKeyDown()) {
+                showSummary(player, getPlayerBalls(level, player), level);
             } else {
-                showBallList(player, playerBalls, level);
+                GolfBallTrackerMenu.open(serverPlayer);
             }
-        } else {
-            showSummary(player, playerBalls, level);
         }
-
-        return InteractionResultHolder.success(stack);
+        return InteractionResultHolder.sidedSuccess(player.getItemInHand(hand), level.isClientSide);
     }
 
     public static List<GolfBallEntity> getPlayerBalls(Level level, Player player) {
@@ -62,70 +52,6 @@ public class GolfHelperItem extends Item {
             player.getBoundingBox().inflate(BALL_SEARCH_RADIUS),
             ball -> ball.getLastHitter() != null && ball.getLastHitter().equals(player.getUUID())
         );
-    }
-
-    public static void showBallList(Player player, List<GolfBallEntity> balls, Level level) {
-        player.displayClientMessage(
-            Component.literal("=== Golf Helper: Tracked Balls ===").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD),
-            false
-        );
-
-        List<GolfBallEntity> sortedBalls = balls.stream()
-                .sorted(Comparator.comparingDouble(b -> b.distanceToSqr(player)))
-                .collect(Collectors.toList());
-
-        for (int i = 0; i < sortedBalls.size(); i++) {
-            GolfBallEntity ball = sortedBalls.get(i);
-            Vec3 pos = ball.position();
-            double distance = Math.sqrt(ball.distanceToSqr(player));
-            boolean inWater = ball.isInWaterOrBubble();
-
-            MutableComponent message = Component.literal(String.format("#%d: ", i + 1))
-                    .withStyle(ChatFormatting.YELLOW)
-                    .append(Component.literal(String.format("(%.1f, %.1f, %.1f) ", pos.x, pos.y, pos.z))
-                            .withStyle(ChatFormatting.WHITE))
-                    .append(Component.literal(String.format("%.1fm away ", distance))
-                            .withStyle(ChatFormatting.GRAY))
-                    .append(Component.literal(inWater ? "[WATER] " : "[LAND] ")
-                            .withStyle(inWater ? ChatFormatting.AQUA : ChatFormatting.GREEN))
-                    .append(Component.literal("[DELETE]")
-                            .withStyle(ChatFormatting.RED, ChatFormatting.BOLD)
-                            .withStyle(style -> style
-                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, 
-                                            "/golf_delete_ball " + ball.getId()))
-                                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, 
-                                            Component.literal("Click to delete this ball")))));
-
-            player.displayClientMessage(message, false);
-        }
-
-        player.displayClientMessage(
-            Component.literal(String.format("Total: %d ball(s)", balls.size())).withStyle(ChatFormatting.AQUA),
-            false
-        );
-        
-        MutableComponent deleteAllButton = Component.literal("[DELETE ALL MY BALLS]")
-                .withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD)
-                .withStyle(style -> style
-                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/golf_delete_all_mine"))
-                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, 
-                                Component.literal("Click to delete all your golf balls"))));
-        
-        player.displayClientMessage(deleteAllButton, false);
-        
-        if (player.hasPermissions(2)) {
-            int totalBalls = level.getEntitiesOfClass(GolfBallEntity.class, 
-                    player.getBoundingBox().inflate(1000.0D)).size();
-            
-            MutableComponent deleteAllTrackedButton = Component.literal("[DELETE ALL TRACKED BALLS (" + totalBalls + " total)]")
-                    .withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.BOLD)
-                    .withStyle(style -> style
-                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/golf_delete_all_tracked"))
-                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, 
-                                    Component.literal("OP ONLY: Delete ALL golf balls in range"))));
-            
-            player.displayClientMessage(deleteAllTrackedButton, false);
-        }
     }
 
     private void showSummary(Player player, List<GolfBallEntity> balls, Level level) {

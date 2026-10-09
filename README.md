@@ -8,12 +8,43 @@ Features
 - Clubs and balls with a charge/accuracy shot system.
 - Tees, flags, fairway, rough, and putting green blocks.
 - Driving range bay and ball tracker.
+- Golf balls in all sixteen vanilla dye colors, with matching glowing outlines.
 
 Requirements
 ------------
 - JDK 21
 - Minecraft 1.21.1
 - NeoForge 21.1.219
+
+Colored balls and tracker
+-------------------------
+Shapeless crafting: combine one golf ball of any color with one vanilla dye in
+either crafting grid to produce one ball matching the dye. White dye changes it
+back to white. White is the default, including balls in older worlds. Color
+survives placing, shooting, world saves, scoring, and deletion/return. All sixteen variants appear
+in the golf creative tab. A glowing ball uses its dye's outline color.
+
+Right-click the Golf Helper to open the chest-style tracker, or use
+`/golf_helper_manage`. Sneak-right-click keeps the wind/nearest-flag summary.
+The tracker lists balls you placed or last hit, across all dimensions, with
+45 balls per page and previous/refresh/next controls in the bottom row.
+Hover a ball for coordinates, dimension, distance, strokes, state, and the
+block at/below it. Loaded information refreshes once a second.
+
+- Left-click a ball to close the menu and draw a colored particle line for five
+  seconds. This works for loaded balls in your dimension within 128 blocks;
+  otherwise a message explains why a path cannot be drawn. Only you see the line.
+- Right-click a ball to delete it and return one ball of the same color. A full
+  inventory drops the returned item at your feet. Players can manage their own
+  balls without operator permissions; every action rechecks ownership on the server.
+
+Tracking data belongs to the world/server, stored as
+`data/fligcraft_golf_tracked_balls.dat` in each dimension's save folder. Unloaded
+balls remain listed with their last known information. Deleting one queues entity
+removal for its next load and immediately returns its item, without loading the
+chunk. Deleted IDs stay saved to prevent an old chunk copy returning a second ball.
+Existing balls become indexed when their chunks first load after upgrading.
+Both server and clients need the updated mod for the tracker interface.
 
 Club power tuning
 -----------------
@@ -79,5 +110,7 @@ Development
 -----------
 - Run client: `./gradlew runClient`
 - Build jar: `./gradlew build` (output in `build/libs`)
+- Server integration tests: `./gradlew runGameTestServer` (isolated world under
+  `runs/gameTestServer`; test classes/resources are excluded from the mod jar)
 
 Mod ID: `fligcraft_golf`

@@ -4,6 +4,9 @@ build/
 out/
 bin/
 
+# Local design notes and review checklists
+/docs/
+
 # VS Code
 .vscode/
 

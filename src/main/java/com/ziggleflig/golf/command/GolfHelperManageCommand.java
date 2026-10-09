@@ -1,14 +1,12 @@
 package com.ziggleflig.golf.command;
 
-import java.util.List;
 
 import com.mojang.brigadier.CommandDispatcher;
-import com.ziggleflig.golf.entity.GolfBallEntity;
-import com.ziggleflig.golf.item.GolfHelperItem;
+import com.ziggleflig.golf.inventory.GolfBallTrackerMenu;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.level.ServerPlayer;
 
 public class GolfHelperManageCommand {
 
@@ -21,17 +19,12 @@ public class GolfHelperManageCommand {
     }
 
     private static int execute(CommandSourceStack source) {
-        Player player = source.getPlayer();
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
             return 0;
         }
 
-        List<GolfBallEntity> playerBalls = GolfHelperItem.getPlayerBalls(player.level(), player);
-        if (playerBalls.isEmpty()) {
-            GolfHelperItem.showNoBallsMessage(player);
-        } else {
-            GolfHelperItem.showBallList(player, playerBalls, player.level());
-        }
+        GolfBallTrackerMenu.open(player);
 
         return 1;
     }
