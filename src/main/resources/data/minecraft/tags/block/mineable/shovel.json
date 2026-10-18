@@ -1,0 +1,13 @@
+{
+  "values": [
+    "fligcraft_golf:fairway",
+    "fligcraft_golf:rough",
+    "fligcraft_golf:putting_green",
+    "fligcraft_golf:fairway_cap",
+    "fligcraft_golf:rough_cap",
+    "fligcraft_golf:putting_green_cap",
+    "fligcraft_golf:bunker_sand",
+    "fligcraft_golf:bunker_sand_cap"
+  ],
+  "replace": false
+}

@@ -4,6 +4,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import com.ziggleflig.golf.GolfMod;
+import com.ziggleflig.golf.block.SculptedGroundBlock;
 import com.ziggleflig.golf.GolfWind;
 import com.ziggleflig.golf.inventory.GolfBallTrackerMenu;
 import com.ziggleflig.golf.entity.GolfBallEntity;
@@ -186,12 +187,9 @@ public class GolfHelperItem extends Item {
                 int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
                 for (int offset = -1; offset <= 1; offset++) {
                     BlockPos flagPos = new BlockPos(x, y + offset, z);
-                    if (isFlagAt(level, flagPos)) {
-                        double distanceSqr = playerPos.distanceToSqr(
-                            flagPos.getX() + 0.5D,
-                            flagPos.getY() + 0.5D,
-                            flagPos.getZ() + 0.5D
-                        );
+                    Vec3 flag = flagPosition(level, flagPos);
+                    if (flag != null) {
+                        double distanceSqr = playerPos.distanceToSqr(flag);
                         if (distanceSqr < bestDistSqr) {
                             bestDistSqr = distanceSqr;
                         }
@@ -208,8 +206,12 @@ public class GolfHelperItem extends Item {
         return Math.sqrt(bestDistSqr);
     }
 
-    private boolean isFlagAt(Level level, BlockPos pos) {
+    public static Vec3 flagPosition(Level level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
-        return state.is(GolfMod.GOLF_FLAG_BLOCK.get());
+        if (state.is(GolfMod.GOLF_FLAG_BLOCK.get())) { return Vec3.atCenterOf(pos); }
+        var owner = SculptedGroundBlock.source(level, pos);
+        if (owner == null || !owner.hasFlag()) { return null; }
+        BlockPos source = owner.getBlockPos();
+        return new Vec3(source.getX() + 0.5, source.getY() + owner.surface().heightAt(0.5, 0.5), source.getZ() + 0.5);
     }
 }

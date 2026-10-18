@@ -39,8 +39,12 @@ public class GolfBallRenderer extends EntityRenderer<GolfBallEntity> {
     public void render(GolfBallEntity entity, float entityYaw, float partialTicks, 
                        PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
         poseStack.pushPose();
+        // Entity position is the bottom of its collision box; the visual ball is centered above it.
+        poseStack.translate(0, entity.getBbWidth() / 2.0, 0);
 
-        poseStack.scale(0.25F, 0.25F, 0.25F);
+        // The eight-pixel model is half a block wide before scaling; match the contact diameter.
+        float ballScale = entity.getBbWidth() * 2.0F;
+        poseStack.scale(ballScale, ballScale, ballScale);
 
         double speed = entity.getDeltaMovement().length();
         if (speed > 0.01) {
@@ -54,6 +58,7 @@ public class GolfBallRenderer extends EntityRenderer<GolfBallEntity> {
                                   OverlayTexture.NO_OVERLAY, 0xFF000000 | entity.getColor().getTextureDiffuseColor());
         
         poseStack.popPose();
+        GolfBallFlightGuide.render(entity, partialTicks, poseStack, buffer);
         super.render(entity, entityYaw, partialTicks, poseStack, buffer, packedLight);
     }
 

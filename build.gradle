@@ -85,8 +85,140 @@ sourceSets {
         compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
         runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
     }
+    clientTest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+    flightClientTest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+    graderClientTest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+    cartClientTest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+    reloadClientTest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
 }
 runs.gameTestServer.modSource sourceSets.gameTest
+
+// An opt-in real client test, with its own world and no fixture code in normal runClient or the jar.
+def clientLightingReport = file('runs/clientLightingTests/terrain-client-lighting-result.txt')
+tasks.register('clientLightingTest') {
+    group = 'verification'
+    description = 'Check terrain lighting through real client placement, breaking, and rendered mesh data.'
+    dependsOn 'runClient'
+    doLast {
+        if (!clientLightingReport.exists() || clientLightingReport.text.trim() != 'PASS') {
+            throw new GradleException('Terrain client lighting test failed; see runs/clientLightingTests/logs/latest.log')
+        }
+    }
+}
+if (gradle.startParameter.taskNames.any { it.tokenize(':').last() == 'clientLightingTest' }) {
+    runs.client.modSource sourceSets.clientTest
+    runs.client.workingDirectory = file('runs/clientLightingTests')
+    tasks.matching { it.name == 'runClient' }.configureEach {
+        doFirst {
+            clientLightingReport.parentFile.mkdirs()
+            clientLightingReport.text = 'NOT_RUN'
+        }
+    }
+}
+
+def ballFlightReport = file('runs/ballFlightTests/ball-flight-result.txt')
+tasks.register('clientBallFlightTest') {
+    group = 'verification'
+    description = 'Check distant ball tracking, rendered flight guides, putts, and the client visibility toggle.'
+    dependsOn 'runClient'
+    doLast {
+        if (!ballFlightReport.exists() || ballFlightReport.text.trim() != 'PASS') {
+            throw new GradleException('Ball flight client test failed; see runs/ballFlightTests/logs/latest.log')
+        }
+    }
+}
+if (gradle.startParameter.taskNames.any { it.tokenize(':').last() == 'clientBallFlightTest' }) {
+    runs.client.modSource sourceSets.flightClientTest
+    runs.client.workingDirectory = file('runs/ballFlightTests')
+    tasks.matching { it.name == 'runClient' }.configureEach {
+        doFirst {
+            ballFlightReport.parentFile.mkdirs()
+            ballFlightReport.text = 'NOT_RUN'
+        }
+    }
+}
+
+def graderPreviewReport = file('runs/graderPreviewTests/grader-preview-result.txt')
+tasks.register('clientGraderPreviewTest') {
+    group = 'verification'
+    description = 'Check grading highlights while switching tools, repairing terrain, clearing selection, and leaving range.'
+    dependsOn 'runClient'
+    doLast {
+        if (!graderPreviewReport.exists() || graderPreviewReport.text.trim() != 'PASS') {
+            throw new GradleException('Grader preview client test failed; see runs/graderPreviewTests/logs/latest.log')
+        }
+    }
+}
+if (gradle.startParameter.taskNames.any { it.tokenize(':').last() == 'clientGraderPreviewTest' }) {
+    runs.client.modSource sourceSets.graderClientTest
+    runs.client.workingDirectory = file('runs/graderPreviewTests')
+    tasks.matching { it.name == 'runClient' }.configureEach {
+        doFirst {
+            graderPreviewReport.parentFile.mkdirs()
+            graderPreviewReport.text = 'NOT_RUN'
+        }
+    }
+}
+
+def cartSyncReport = file('runs/cartSyncTests/cart-sync-result.txt')
+tasks.register('clientCartSyncTest') {
+    group = 'verification'
+    description = 'Check cart movement authority, interpolation, stopping, dismounting, and walking after exit.'
+    dependsOn 'runClient'
+    doLast {
+        if (!cartSyncReport.exists() || cartSyncReport.text.trim() != 'PASS') {
+            throw new GradleException('Cart synchronization test failed; see runs/cartSyncTests/logs/latest.log')
+        }
+    }
+}
+if (gradle.startParameter.taskNames.any { it.tokenize(':').last() == 'clientCartSyncTest' }) {
+    runs.client.modSource sourceSets.cartClientTest
+    runs.client.workingDirectory = file('runs/cartSyncTests')
+    tasks.matching { it.name == 'runClient' }.configureEach {
+        doFirst {
+            cartSyncReport.parentFile.mkdirs()
+            cartSyncReport.text = 'NOT_RUN'
+        }
+    }
+}
+
+// Separate save/reopen fixture for terrain beneath a tree canopy.
+def terrainReloadReport = file('runs/terrainReloadTests/terrain-reload-result.txt')
+tasks.register('clientTerrainReloadTest') {
+    group = 'verification'
+    description = 'Check terrain light and uploaded meshes beneath leaves across actual world saves and reloads.'
+    dependsOn 'runClient'
+    doLast {
+        if (!terrainReloadReport.exists() || terrainReloadReport.text.trim() != 'PASS') {
+            throw new GradleException('Terrain reload test failed; see runs/terrainReloadTests/logs/latest.log')
+        }
+    }
+}
+if (gradle.startParameter.taskNames.any { it.tokenize(':').last() == 'clientTerrainReloadTest' }) {
+    runs.client.modSource sourceSets.reloadClientTest
+    runs.client.workingDirectory = file('runs/terrainReloadTests')
+    tasks.matching { it.name == 'runClient' }.configureEach {
+        doFirst {
+            terrainReloadReport.parentFile.mkdirs()
+            terrainReloadReport.text = 'NOT_RUN'
+        }
+    }
+}
 
 // Sets up a dependency configuration called 'localRuntime'.
 // This configuration should be used instead of 'runtimeOnly' to declare

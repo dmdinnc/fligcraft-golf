@@ -10,6 +10,8 @@ import com.ziggleflig.golf.GolfModConfig;
 import com.ziggleflig.golf.GolfClubConfig;
 import com.ziggleflig.golf.GolfWind;
 import com.ziggleflig.golf.entity.GolfBallEntity;
+import com.ziggleflig.golf.terrain.SculptedBallPhysics;
+import com.ziggleflig.golf.terrain.GolfSurfacePhysics;
 import com.ziggleflig.golf.network.ShotAccuracyPayload;
 
 import net.minecraft.core.BlockPos;
@@ -24,7 +26,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -296,6 +297,10 @@ public class GolfClubItem extends Item {
             verticalPower,
             horizontalDir.z * horizontalPower
         );
+        if (this.isPutter) {
+            var surface = SculptedBallPhysics.support(player.level(), target.position(), target.getBbWidth() / 2.0, 0.015);
+            if (surface != null) { velocity = SculptedBallPhysics.tangent(velocity, surface.normal()); }
+        }
 
         target.startGlowUntilNearby();
         float spinStrength = Math.min(1.0f, errorPercent / 100.0f);
@@ -327,24 +332,9 @@ public class GolfClubItem extends Item {
         if (target.isInWaterOrBubble() || level.getFluidState(target.blockPosition()).is(Fluids.WATER)) {
             return 0.3D;
         }
-
-        BlockPos below = target.blockPosition().below();
-        BlockState state = level.getBlockState(below);
-        String path = BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath();
-
-        if (path.contains("rough")) {
-            return 0.85D;
-        }
-
-        if (path.contains("fairway") || path.contains("putting_green")) {
-            return 1.0D;
-        }
-
-        if (path.contains("sand") || path.contains("gravel")) {
-            return 0.5D;
-        }
-
-        return 0.7D;
+        var sculpted = SculptedBallPhysics.support(level, target.position(), target.getBbWidth() / 2.0, 0.015);
+        if (sculpted != null) { return sculpted.material().shotPower(); }
+        return GolfSurfacePhysics.shotPower(level.getBlockState(target.blockPosition().below()));
     }
     
     private float calculateAccuracy(long elapsedMs) {

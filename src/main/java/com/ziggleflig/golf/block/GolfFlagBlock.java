@@ -9,8 +9,11 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 public class GolfFlagBlock extends Block {
 
+    // Clear the ball's diameter and the extra height of a rolling sphere on steep sculpted slopes.
+    public static final double BALL_CLEARANCE = 0.75D;
     // Flag pole shape
     private static final VoxelShape SHAPE = Block.box(7.5, 0.0, 7.5, 8.5, 16.0, 8.5);
+    private static final VoxelShape COLLISION_SHAPE = Block.box(7.5, BALL_CLEARANCE * 16, 7.5, 8.5, 16, 8.5);
 
     public GolfFlagBlock(Properties properties) {
         super(properties);
@@ -19,5 +22,10 @@ public class GolfFlagBlock extends Block {
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPE;
+    }
+
+    @Override
+    public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return COLLISION_SHAPE;
     }
 }

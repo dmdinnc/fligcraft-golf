@@ -13,6 +13,8 @@ public class GolfClient {
     
     @SubscribeEvent
     public static void registerGuiLayers(RegisterGuiLayersEvent event) {
+        event.registerAbove(VanillaGuiLayers.CROSSHAIR, com.ziggleflig.golf.GolfMod.id("terrain_trowel"), new TerrainTrowelOverlay());
+        event.registerAbove(VanillaGuiLayers.CROSSHAIR, com.ziggleflig.golf.GolfMod.id("terrain_grader"), new TerrainGraderOverlay());
         event.registerAbove(VanillaGuiLayers.CROSSHAIR, 
             com.ziggleflig.golf.GolfMod.id("charge_bar"), 
             new GolfChargeOverlay());

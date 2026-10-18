@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/block",
+  "cap": true,
+  "loader": "fligcraft_golf:course_ground",
+  "textures": {
+    "particle": "#surface",
+    "surface": "fligcraft_golf:block/rough"
+  }
+}

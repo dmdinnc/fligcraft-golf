@@ -6,6 +6,7 @@ bin/
 
 # Local design notes and review checklists
 /docs/
+/AGENTS.md
 
 # VS Code
 .vscode/

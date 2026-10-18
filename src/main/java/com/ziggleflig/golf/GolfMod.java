@@ -3,23 +3,30 @@ package com.ziggleflig.golf;
 import org.slf4j.Logger;
 
 import com.ziggleflig.golf.block.DrivingRangeBayBlock;
-import com.ziggleflig.golf.block.FairwayBlock;
-import com.ziggleflig.golf.block.FairwayLayerBlock;
 import com.ziggleflig.golf.block.GolfFlagBlock;
+import com.ziggleflig.golf.item.GolfFlagItem;
 import com.ziggleflig.golf.block.GolfTeeBlock;
-import com.ziggleflig.golf.block.PuttingGreenBlock;
-import com.ziggleflig.golf.block.RoughBlock;
-import com.ziggleflig.golf.block.RoughLayerBlock;
+import com.ziggleflig.golf.block.SculptedGroundBlock;
+import com.ziggleflig.golf.block.entity.SculptedGroundBlockEntity;
+import com.ziggleflig.golf.terrain.TerrainMaterial;
+import com.ziggleflig.golf.client.SculptedGroundGeometry;
+import com.ziggleflig.golf.client.CourseFlagRenderer;
+import com.ziggleflig.golf.client.TerrainTrowelOverlay;
+import com.ziggleflig.golf.item.TerrainTrowelItem;
+import com.ziggleflig.golf.item.TerrainGraderItem;
+import com.ziggleflig.golf.client.TerrainGraderOverlay;
 import com.ziggleflig.golf.client.GolfBagScreen;
 import com.ziggleflig.golf.client.GolfBallRenderer;
 import com.ziggleflig.golf.client.GolfBallTrackerScreen;
 import com.ziggleflig.golf.client.GolfCartRenderer;
 import com.ziggleflig.golf.client.GolfClient;
+import com.ziggleflig.golf.client.GolfClientConfig;
 import com.ziggleflig.golf.command.DeleteBallCommand;
 import com.ziggleflig.golf.command.DeleteAllMineCommand;
 import com.ziggleflig.golf.command.DeleteAllTrackedCommand;
 import com.ziggleflig.golf.command.GolfHelperManageCommand;
 import com.ziggleflig.golf.command.GolfClubsCommand;
+import com.ziggleflig.golf.command.TerrainGraderCommand;
 import com.ziggleflig.golf.entity.GolfBallEntity;
 import com.ziggleflig.golf.entity.GolfCartEntity;
 import com.ziggleflig.golf.entity.GolfCartModel;
@@ -45,6 +52,7 @@ import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.inventory.MenuType;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.minecraft.world.item.BlockItem;
+import com.ziggleflig.golf.item.CourseGroundItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
@@ -53,6 +61,8 @@ import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.neoforged.api.distmarker.Dist;
@@ -80,6 +90,7 @@ public class GolfMod {
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(MODID);
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
     public static final DeferredRegister<EntityType<?>> ENTITY_TYPES = DeferredRegister.create(Registries.ENTITY_TYPE, MODID);
+    public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITY_TYPES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, MODID);
     public static final DeferredRegister<MenuType<?>> MENU_TYPES = DeferredRegister.create(Registries.MENU, MODID);
     public static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS = DeferredRegister.create(Registries.RECIPE_SERIALIZER, MODID);
     public static final DeferredHolder<RecipeSerializer<?>, SimpleCraftingRecipeSerializer<GolfBallDyeRecipe>> GOLF_BALL_DYE_RECIPE =
@@ -93,23 +104,46 @@ public class GolfMod {
     public static final DeferredBlock<Block> DRIVING_RANGE_BAY_BLOCK = BLOCKS.register("driving_range_bay",
             () -> new DrivingRangeBayBlock(BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(2.0F).noOcclusion()));
 
-    // Blocks
-    public static final DeferredBlock<Block> FAIRWAY_BLOCK = BLOCKS.register("fairway",
-            () -> new FairwayBlock(BlockBehaviour.Properties.of().mapColor(MapColor.GRASS).strength(0.6F)));
-    public static final DeferredBlock<Block> ROUGH_BLOCK = BLOCKS.register("rough",
-            () -> new RoughBlock(BlockBehaviour.Properties.of().mapColor(MapColor.GRASS).strength(0.6F)));
-    public static final DeferredBlock<Block> PUTTING_GREEN_BLOCK = BLOCKS.register("putting_green",
-            () -> new PuttingGreenBlock(BlockBehaviour.Properties.of().mapColor(MapColor.GRASS).strength(0.6F)));
-    public static final DeferredBlock<Block> FAIRWAY_LAYER_BLOCK = BLOCKS.register("fairway_layer",
-            () -> new FairwayLayerBlock(BlockBehaviour.Properties.of().mapColor(MapColor.GRASS).strength(0.1F).noOcclusion()));
-    public static final DeferredBlock<Block> ROUGH_LAYER_BLOCK = BLOCKS.register("rough_layer",
-            () -> new RoughLayerBlock(BlockBehaviour.Properties.of().mapColor(MapColor.GRASS).strength(0.1F).noOcclusion()));
+    // Keep the shipped block/item IDs and property-free states; old chunks default to full geometry.
+    public static final DeferredBlock<SculptedGroundBlock> FAIRWAY_BLOCK = courseGround("fairway", TerrainMaterial.FAIRWAY);
+    public static final DeferredBlock<SculptedGroundBlock> ROUGH_BLOCK = courseGround("rough", TerrainMaterial.ROUGH);
+    public static final DeferredBlock<SculptedGroundBlock> PUTTING_GREEN_BLOCK = courseGround("putting_green", TerrainMaterial.GREEN);
+    public static final DeferredBlock<SculptedGroundBlock> BUNKER_SAND_BLOCK = courseGround("bunker_sand", TerrainMaterial.SAND);
+    public static final DeferredBlock<SculptedGroundBlock> FAIRWAY_CAP = courseCap("fairway_cap", TerrainMaterial.FAIRWAY);
+    public static final DeferredBlock<SculptedGroundBlock> ROUGH_CAP = courseCap("rough_cap", TerrainMaterial.ROUGH);
+    public static final DeferredBlock<SculptedGroundBlock> PUTTING_GREEN_CAP = courseCap("putting_green_cap", TerrainMaterial.GREEN);
+    public static final DeferredBlock<SculptedGroundBlock> BUNKER_SAND_CAP = courseCap("bunker_sand_cap", TerrainMaterial.SAND);
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SculptedGroundBlockEntity>> COURSE_GROUND_ENTITY =
+        BLOCK_ENTITY_TYPES.register("course_ground", () -> BlockEntityType.Builder.of(SculptedGroundBlockEntity::new,
+            FAIRWAY_BLOCK.get(), ROUGH_BLOCK.get(), PUTTING_GREEN_BLOCK.get(), BUNKER_SAND_BLOCK.get(),
+            FAIRWAY_CAP.get(), ROUGH_CAP.get(), PUTTING_GREEN_CAP.get(), BUNKER_SAND_CAP.get()).build(null));
+
+    private static DeferredBlock<SculptedGroundBlock> courseCap(String name, TerrainMaterial material) {
+        return BLOCKS.register(name, () -> new SculptedGroundBlock(material, true, courseProperties(material)));
+    }
+    public static SculptedGroundBlock courseCap(TerrainMaterial material) {
+        return switch (material) {
+            case FAIRWAY -> FAIRWAY_CAP.get();
+            case ROUGH -> ROUGH_CAP.get();
+            case GREEN -> PUTTING_GREEN_CAP.get();
+            case SAND -> BUNKER_SAND_CAP.get();
+        };
+    }
+
+    private static DeferredBlock<SculptedGroundBlock> courseGround(String name, TerrainMaterial material) {
+        return BLOCKS.register(name, () -> new SculptedGroundBlock(material, courseProperties(material)));
+    }
+    private static BlockBehaviour.Properties courseProperties(TerrainMaterial material) {
+        boolean sand = material == TerrainMaterial.SAND;
+        return BlockBehaviour.Properties.of().mapColor(sand ? MapColor.SAND : MapColor.GRASS)
+            .sound(sand ? SoundType.SAND : SoundType.GRASS).strength(sand ? 0.5f : 0.6f).noOcclusion().dynamicShape();
+    }
 
     // Entities
     public static final DeferredHolder<EntityType<?>, EntityType<GolfBallEntity>> GOLF_BALL_ENTITY = ENTITY_TYPES.register("golf_ball",
             () -> EntityType.Builder.<GolfBallEntity>of(GolfBallEntity::new, MobCategory.MISC)
                     .sized(0.25F, 0.25F)
-                    .clientTrackingRange(10)
+                    .clientTrackingRange(GolfBallEntity.TRACKING_RANGE_CHUNKS)
                     .updateInterval(1)
                     .build(ResourceLocation.fromNamespaceAndPath(MODID, "golf_ball").toString()));
 
@@ -122,13 +156,14 @@ public class GolfMod {
 
     // Items
     public static final DeferredItem<BlockItem> GOLF_TEE_ITEM = ITEMS.registerSimpleBlockItem("golf_tee", GOLF_TEE_BLOCK);
-    public static final DeferredItem<BlockItem> GOLF_FLAG_ITEM = ITEMS.registerSimpleBlockItem("golf_flag", GOLF_FLAG_BLOCK);
+    public static final DeferredItem<BlockItem> GOLF_FLAG_ITEM = ITEMS.register("golf_flag", () -> new GolfFlagItem(GOLF_FLAG_BLOCK.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> DRIVING_RANGE_BAY_ITEM = ITEMS.registerSimpleBlockItem("driving_range_bay", DRIVING_RANGE_BAY_BLOCK);
-    public static final DeferredItem<BlockItem> FAIRWAY_ITEM = ITEMS.registerSimpleBlockItem("fairway", FAIRWAY_BLOCK);
-    public static final DeferredItem<BlockItem> ROUGH_ITEM = ITEMS.registerSimpleBlockItem("rough", ROUGH_BLOCK);
-    public static final DeferredItem<BlockItem> PUTTING_GREEN_ITEM = ITEMS.registerSimpleBlockItem("putting_green", PUTTING_GREEN_BLOCK);
-    public static final DeferredItem<BlockItem> FAIRWAY_LAYER_ITEM = ITEMS.registerSimpleBlockItem("fairway_layer", FAIRWAY_LAYER_BLOCK);
-    public static final DeferredItem<BlockItem> ROUGH_LAYER_ITEM = ITEMS.registerSimpleBlockItem("rough_layer", ROUGH_LAYER_BLOCK);
+    public static final DeferredItem<BlockItem> FAIRWAY_ITEM = ITEMS.register("fairway", () -> new CourseGroundItem(FAIRWAY_BLOCK.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> ROUGH_ITEM = ITEMS.register("rough", () -> new CourseGroundItem(ROUGH_BLOCK.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> PUTTING_GREEN_ITEM = ITEMS.register("putting_green", () -> new CourseGroundItem(PUTTING_GREEN_BLOCK.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> BUNKER_SAND_ITEM = ITEMS.register("bunker_sand", () -> new CourseGroundItem(BUNKER_SAND_BLOCK.get(), new Item.Properties()));
+    public static final DeferredItem<Item> TERRAIN_TROWEL = ITEMS.register("terrain_trowel", () -> new TerrainTrowelItem(new Item.Properties().stacksTo(1)));
+    public static final DeferredItem<Item> TERRAIN_GRADER = ITEMS.register("terrain_grader", () -> new TerrainGraderItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<Item> GOLF_BALL = ITEMS.register("golf_ball",
             () -> new GolfBallItem(new Item.Properties().stacksTo(16)));
 
@@ -199,10 +234,11 @@ public class GolfMod {
                 output.accept(GOLF_FLAG_ITEM.get());
                 output.accept(DRIVING_RANGE_BAY_ITEM.get());
                 output.accept(FAIRWAY_ITEM.get());
-                output.accept(FAIRWAY_LAYER_ITEM.get());
                 output.accept(ROUGH_ITEM.get());
-                output.accept(ROUGH_LAYER_ITEM.get());
                 output.accept(PUTTING_GREEN_ITEM.get());
+                output.accept(BUNKER_SAND_ITEM.get());
+                output.accept(TERRAIN_TROWEL.get());
+                output.accept(TERRAIN_GRADER.get());
             }).build());
 
     public GolfMod(IEventBus modEventBus, ModContainer modContainer) {
@@ -210,16 +246,23 @@ public class GolfMod {
         modEventBus.addListener(GolfNetwork::registerPayloadHandlers);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
+            modContainer.registerConfig(ModConfig.Type.CLIENT, GolfClientConfig.SPEC, "fligcraft_golf-client.toml");
             modEventBus.addListener(GolfMod::registerRenderers);
             modEventBus.addListener(GolfMod::registerLayerDefinitions);
             modEventBus.addListener(GolfMod::registerScreens);
             modEventBus.addListener(GolfClient::registerGuiLayers);
             modEventBus.addListener(GolfClient::registerItemColors);
+            modEventBus.addListener(GolfMod::registerTerrainModels);
+            NeoForge.EVENT_BUS.addListener(TerrainTrowelOverlay::highlight);
+            NeoForge.EVENT_BUS.addListener(TerrainGraderOverlay::renderWorld);
+            NeoForge.EVENT_BUS.addListener(TerrainGraderOverlay::onLogout);
         }
 
         BLOCKS.register(modEventBus);
         ITEMS.register(modEventBus);
+        modEventBus.addListener(GolfMod::registerCourseAliases);
         ENTITY_TYPES.register(modEventBus);
+        BLOCK_ENTITY_TYPES.register(modEventBus);
         MENU_TYPES.register(modEventBus);
         RECIPE_SERIALIZERS.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
@@ -234,6 +277,9 @@ public class GolfMod {
         NeoForge.EVENT_BUS.addListener(GolfBallLocator::onServerStopped);
         NeoForge.EVENT_BUS.addListener(GolfBallTracking::onJoin);
         NeoForge.EVENT_BUS.addListener(GolfBallTracking::onLeave);
+        NeoForge.EVENT_BUS.addListener(SculptedGroundBlock::onCapBreak);
+        NeoForge.EVENT_BUS.addListener(TerrainTrowelItem::onSwapHands);
+        NeoForge.EVENT_BUS.addListener(TerrainGraderItem::onSwapHands);
 
         modEventBus.addListener(this::addCreativeContents);
     }
@@ -249,13 +295,27 @@ public class GolfMod {
         DeleteAllTrackedCommand.register(event.getDispatcher());
         GolfHelperManageCommand.register(event.getDispatcher());
         GolfClubsCommand.register(event.getDispatcher());
+        TerrainGraderCommand.register(event.getDispatcher());
     }
 
     public static ResourceLocation id(String path) {
         return ResourceLocation.fromNamespaceAndPath(MODID, path);
     }
 
+    private static void registerCourseAliases(net.neoforged.neoforge.registries.RegisterEvent event) {
+        if (event.getRegistryKey() == Registries.BLOCK || event.getRegistryKey() == Registries.ITEM) {
+            // Removed layers decode as air in chunk palettes, containers, and player inventories.
+            // Aliases do not register replacement blocks or expose items in the creative tab.
+            event.getRegistry().addAlias(id("fairway_layer"), ResourceLocation.withDefaultNamespace("air"));
+            event.getRegistry().addAlias(id("rough_layer"), ResourceLocation.withDefaultNamespace("air"));
+            // Retain terrain from earlier Sand prototypes under the new Bunker Sand name.
+            event.getRegistry().addAlias(id("sand"), id("bunker_sand"));
+            if (event.getRegistryKey() == Registries.BLOCK) { event.getRegistry().addAlias(id("sand_cap"), id("bunker_sand_cap")); }
+        }
+    }
+
     private static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerBlockEntityRenderer(COURSE_GROUND_ENTITY.get(), CourseFlagRenderer::new);
         event.registerEntityRenderer(
                 GOLF_BALL_ENTITY.get(),
                 GolfBallRenderer::new
@@ -264,6 +324,10 @@ public class GolfMod {
                 GOLF_CART_ENTITY.get(),
                 GolfCartRenderer::new
         );
+    }
+
+    private static void registerTerrainModels(net.neoforged.neoforge.client.event.ModelEvent.RegisterGeometryLoaders event) {
+        event.register(id("course_ground"), new SculptedGroundGeometry.Loader());
     }
 
     private static void registerLayerDefinitions(net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterLayerDefinitions event) {

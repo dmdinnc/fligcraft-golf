@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/block",
+  "loader": "fligcraft_golf:course_ground",
+  "textures": {
+    "particle": "#surface",
+    "surface": "fligcraft_golf:block/bunker_sand",
+    "hole": "fligcraft_golf:block/hole"
+  }
+}
