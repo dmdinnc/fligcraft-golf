@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "item": "minecraft:compass" },
+    { "item": "minecraft:iron_ingot" },
+    { "item": "minecraft:stick" }
+  ],
+  "result": { "id": "fligcraft_golf:terrain_grader", "count": 1 }
+}

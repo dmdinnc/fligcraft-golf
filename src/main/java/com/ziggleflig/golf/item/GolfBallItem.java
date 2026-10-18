@@ -2,6 +2,7 @@ package com.ziggleflig.golf.item;
 
 import com.ziggleflig.golf.GolfMod;
 import com.ziggleflig.golf.entity.GolfBallEntity;
+import com.ziggleflig.golf.block.SculptedGroundBlock;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -55,6 +56,12 @@ public class GolfBallItem extends Item {
         }
 
         Vec3 spawnPos = Vec3.atCenterOf(pos).add(0.0D, 0.625D, 0.0D);
+        var ground = SculptedGroundBlock.source(level, pos);
+        if (ground != null) {
+            BlockPos origin = ground.getBlockPos();
+            spawnPos = new Vec3(origin.getX() + 0.5,
+                origin.getY() + ground.surface().ballFeetHeight(0.5, 0.5, 0.125) + 0.00001, origin.getZ() + 0.5);
+        }
 
         GolfBallEntity ball = new GolfBallEntity(GolfMod.GOLF_BALL_ENTITY.get(), level);
         ball.setColor(getColor(context.getItemInHand()));

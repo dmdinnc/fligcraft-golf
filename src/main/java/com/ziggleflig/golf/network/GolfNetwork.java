@@ -4,7 +4,8 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class GolfNetwork {
-    private static final String VERSION = "2";
+    // Flight guides add synchronized entity fields; older clients must update before connecting.
+    private static final String VERSION = "3";
 
     private GolfNetwork() {
     }

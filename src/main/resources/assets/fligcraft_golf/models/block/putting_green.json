@@ -1,6 +1,9 @@
 {
-  "parent": "minecraft:block/cube_all",
+  "parent": "minecraft:block/block",
   "textures": {
-    "all": "fligcraft_golf:block/putting_green"
-  }
+    "particle": "#surface",
+    "surface": "fligcraft_golf:block/putting_green",
+    "hole": "fligcraft_golf:block/hole"
+  },
+  "loader": "fligcraft_golf:course_ground"
 }

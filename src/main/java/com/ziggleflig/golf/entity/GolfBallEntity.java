@@ -7,41 +7,38 @@ import com.ziggleflig.golf.GolfModConfig;
 import com.ziggleflig.golf.GolfWind;
 import com.ziggleflig.golf.item.GolfBallItem;
 import com.ziggleflig.golf.tracker.GolfBallTrackerData;
+import com.ziggleflig.golf.terrain.SculptedBallPhysics;
+import com.ziggleflig.golf.terrain.GolfSurfacePhysics;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ItemSupplier;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 
 public class GolfBallEntity extends Entity implements ItemSupplier {
     private static final EntityDataAccessor<Integer> COLOR = SynchedEntityData.defineId(
         GolfBallEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> SHOT_NUMBER = SynchedEntityData.defineId(
+        GolfBallEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Boolean> PUTT_SHOT = SynchedEntityData.defineId(
+        GolfBallEntity.class, EntityDataSerializers.BOOLEAN);
+    public static final int TRACKING_RANGE_CHUNKS = 32;
+    public static final double RENDER_DISTANCE = TRACKING_RANGE_CHUNKS * 16.0;
+    private final GolfBallFlightTrail flightTrail = new GolfBallFlightTrail();
 
-    // Hole detection tuning
-    private static final double HOLE_ROLLING_SPEED_THRESHOLD_SQR = 0.16D;
-    private static final double HOLE_AIR_SPEED_THRESHOLD_SQR = 0.5D;
-    private static final double HOLE_STOPPED_SPEED_THRESHOLD_SQR = 0.0001D;
-    private static final double HOLE_RADIUS = 2.5D / 16.0D;
-    private static final double HOLE_RADIUS_SQR = HOLE_RADIUS * HOLE_RADIUS;
-    private static final double HOLE_STOPPED_RADIUS = 1.0D;
-    private static final double HOLE_STOPPED_RADIUS_SQR = HOLE_STOPPED_RADIUS * HOLE_STOPPED_RADIUS;
+    private final GolfCupCapture cupCapture = new GolfCupCapture();
     private static final double WIND_INFLUENCE = 0.0125D;
     private static final double GLOW_CHECK_SPEED_SQR = 0.0025D;
     private static final double WATER_STOP_SPEED_SQR = 0.0004D;
@@ -49,6 +46,8 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     private int strokes;
     private UUID lastHitter;
     private boolean registeredForTracking;
+    // Full flight drag ends at the first ground contact; short rebounds should not erase runout.
+    private boolean hasLanded;
     private boolean onTee;
     private boolean isDrivingRangeBall;
     private int drivingRangeLifetime;
@@ -63,7 +62,6 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     private float spin;
     private boolean glowUntilNearby;
     private int glowTimeoutTicks;
-    private boolean puttShot;
     private boolean hasLastHitPosition;
     private double lastHitX;
     private double lastHitY;
@@ -80,6 +78,12 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         this.noPhysics = false;
         this.setNoGravity(false);
     }
+
+    @Override public boolean shouldRenderAtSqrDistance(double distance) {
+        // Vanilla scales this cutoff with hitbox size, hiding a quarter-block ball at about 16 blocks.
+        return distance < RENDER_DISTANCE * RENDER_DISTANCE;
+    }
+    public GolfBallFlightTrail flightTrail() { return flightTrail; }
     
     @Override
     public void lerpTo(double x, double y, double z, float yRot, float xRot, int steps) {
@@ -90,7 +94,9 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     }
 
     public void registerStroke(Player player) {
+        this.hasLanded = false;
         this.strokes++;
+        this.entityData.set(SHOT_NUMBER, this.strokes);
         this.lastHitter = player.getUUID();
         this.lastHitX = this.getX();
         this.lastHitY = this.getY();
@@ -125,6 +131,8 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(COLOR, DyeColor.WHITE.getId());
+        builder.define(SHOT_NUMBER, 0);
+        builder.define(PUTT_SHOT, false);
     }
 
     public DyeColor getColor() {
@@ -173,7 +181,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     }
 
     public void setPuttShot(boolean puttShot) {
-        this.puttShot = puttShot;
+        this.entityData.set(PUTT_SHOT, puttShot);
     }
 
     public float getSpin() {
@@ -190,6 +198,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     protected void readAdditionalSaveData(CompoundTag tag) {
         setColor(tag.contains("BallColor") ? DyeColor.byId(tag.getInt("BallColor")) : DyeColor.WHITE);
         this.strokes = tag.getInt("Strokes");
+        this.entityData.set(SHOT_NUMBER, this.strokes);
         if (tag.hasUUID("LastHitter")) {
             this.lastHitter = tag.getUUID("LastHitter");
         }
@@ -201,11 +210,12 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         this.startZ = tag.getDouble("StartZ");
         this.maxHeight = tag.getDouble("MaxHeight");
         this.hasBouncedOnce = tag.getBoolean("HasBouncedOnce");
+        this.hasLanded = tag.getBoolean("HasLanded");
         this.carryDistance = tag.getDouble("CarryDistance");
         this.statsRecorded = tag.getBoolean("StatsRecorded");
         this.lastShotErrorPercent = tag.getFloat("LastShotErrorPercent");
         this.spin = tag.getFloat("Spin");
-        this.puttShot = tag.getBoolean("PuttShot");
+        setPuttShot(tag.getBoolean("PuttShot"));
         this.hasLastHitPosition = tag.getBoolean("HasLastHitPosition");
         this.lastHitX = tag.getDouble("LastHitX");
         this.lastHitY = tag.getDouble("LastHitY");
@@ -235,11 +245,12 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         tag.putDouble("StartZ", this.startZ);
         tag.putDouble("MaxHeight", this.maxHeight);
         tag.putBoolean("HasBouncedOnce", this.hasBouncedOnce);
+        tag.putBoolean("HasLanded", this.hasLanded);
         tag.putDouble("CarryDistance", this.carryDistance);
         tag.putBoolean("StatsRecorded", this.statsRecorded);
         tag.putFloat("LastShotErrorPercent", this.lastShotErrorPercent);
         tag.putFloat("Spin", this.spin);
-        tag.putBoolean("PuttShot", this.puttShot);
+        tag.putBoolean("PuttShot", this.entityData.get(PUTT_SHOT));
         tag.putBoolean("HasLastHitPosition", this.hasLastHitPosition);
         tag.putDouble("LastHitX", this.lastHitX);
         tag.putDouble("LastHitY", this.lastHitY);
@@ -253,9 +264,9 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     public void tick() {
         super.tick();
         handleClientLerp();
-        spawnTrailParticles();
 
         if (this.level().isClientSide) {
+            flightTrail.update(this.tickCount, this.position(), this.entityData.get(SHOT_NUMBER), this.entityData.get(PUTT_SHOT));
             return;
         }
 
@@ -271,23 +282,11 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
 
         updateGlowUntilNearby();
 
-        Vec3 motion = this.getDeltaMovement();
-        motion = applyGravity(motion);
-        motion = applyAirDrag(motion);
-        motion = applyMagnusEffect(motion);
-        motion = applyWind(motion);
-
-        Vec3 posBefore = this.position();
-        Vec3 velocityBeforeMove = motion;
-
-        this.setDeltaMovement(motion);
-        this.move(MoverType.SELF, motion);
-
-        motion = handleWallCollisions(posBefore, motion);
-
-        if (this.onGround()) {
-            handleGroundInteraction(velocityBeforeMove);
-        }
+        double airRetention = this.onGround() ? 1.0 : this.hasLanded ? 0.995 : 0.97;
+        Vec3 motion = applyWind(applyMagnusEffect(this.getDeltaMovement().scale(airRetention)));
+        double gravity = this.isNoGravity() ? 0 : 0.035 * airRetention;
+        var result = SculptedBallPhysics.move(this, motion, gravity, GolfSurfacePhysics::response, this::checkForHole);
+        if (result.touchedGround()) { recordCarryDistance(); maybeDisplayDrivingRangeStats(); }
 
         maybeReturnFromWater();
         if (this.tickCount % 20 == 0) { updateTracking(); }
@@ -319,23 +318,6 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         this.lerpSteps--;
     }
 
-    private void spawnTrailParticles() {
-        if (this.puttShot) {
-            return;
-        }
-        Vec3 velocity = this.getDeltaMovement();
-        double speed = velocity.lengthSqr();
-        if (speed > 0.01D) {
-            this.level().addParticle(
-                ParticleTypes.CLOUD,
-                this.getX(),
-                this.getY(),
-                this.getZ(),
-                0.0D, 0.0D, 0.0D
-            );
-        }
-    }
-
     private boolean updateDrivingRangeLifetime() {
         if (this.isDrivingRangeBall && this.drivingRangeLifetime > 0) {
             if (this.getY() > this.maxHeight) {
@@ -348,20 +330,6 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
             }
         }
         return false;
-    }
-
-    private Vec3 applyGravity(Vec3 motion) {
-        if (this.isNoGravity()) {
-            return motion;
-        }
-        return motion.add(0.0D, -0.035D, 0.0D);
-    }
-
-    private Vec3 applyAirDrag(Vec3 motion) {
-        if (this.onGround()) {
-            return motion;
-        }
-        return motion.scale(0.97D);
     }
 
     private Vec3 applyMagnusEffect(Vec3 motion) {
@@ -432,61 +400,6 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         }
     }
 
-    private Vec3 handleWallCollisions(Vec3 posBefore, Vec3 motion) {
-        Vec3 posAfter = this.position();
-        Vec3 actualMovement = posAfter.subtract(posBefore);
-        Vec3 intendedMovement = motion;
-
-        BlockPos collisionPos = this.blockPosition();
-        boolean hitFlagPole = this.level().getBlockState(collisionPos).is(GolfMod.GOLF_FLAG_BLOCK.get());
-        double bounceMultiplier = hitFlagPole ? 0.15D : 0.6D;
-
-        boolean hitWall = false;
-        Vec3 reflectedMotion = motion;
-
-        if (Math.abs(intendedMovement.x) > 0.001 && Math.abs(actualMovement.x) < Math.abs(intendedMovement.x) * 0.5) {
-            reflectedMotion = new Vec3(-motion.x * bounceMultiplier, motion.y, motion.z);
-            hitWall = true;
-        }
-
-        if (Math.abs(intendedMovement.z) > 0.001 && Math.abs(actualMovement.z) < Math.abs(intendedMovement.z) * 0.5) {
-            reflectedMotion = new Vec3(reflectedMotion.x, motion.y, -motion.z * bounceMultiplier);
-            hitWall = true;
-        }
-
-        if (hitWall) {
-            this.setDeltaMovement(reflectedMotion);
-            return reflectedMotion;
-        }
-
-        return motion;
-    }
-
-    private void handleGroundInteraction(Vec3 velocityBeforeMove) {
-        BlockPos belowPos = this.getBlockPosBelowThatAffectsMyMovement();
-        BlockState belowState = this.level().getBlockState(belowPos);
-
-        Vec3 motion = this.getDeltaMovement();
-        double friction = getGroundFriction(belowState);
-        double bounce = getBounceMultiplier(belowState);
-
-        if (velocityBeforeMove.y < -0.05D) {
-            motion = new Vec3(motion.x * friction, -velocityBeforeMove.y * bounce, motion.z * friction);
-            recordCarryDistance();
-        } else {
-            motion = new Vec3(motion.x * friction, motion.y * 0.1D, motion.z * friction);
-        }
-
-        if (motion.horizontalDistanceSqr() < 0.0001D && Math.abs(motion.y) < 0.005D) {
-            motion = Vec3.ZERO;
-        }
-
-        this.setDeltaMovement(motion);
-
-        maybeDisplayDrivingRangeStats();
-        checkForHole();
-    }
-
     private void maybeReturnFromWater() {
         if (!GolfModConfig.COMMON.returnBallFromWater.get()) {
             return;
@@ -505,6 +418,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
     }
 
     private void recordCarryDistance() {
+        this.hasLanded = true;
         if (this.isDrivingRangeBall && !this.hasBouncedOnce && this.drivingRangeLifetime > 0) {
             this.hasBouncedOnce = true;
             double dx = this.getX() - this.startX;
@@ -524,111 +438,8 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         }
     }
 
-    private double getGroundFriction(BlockState state) {
-        ResourceLocation key = BuiltInRegistries.BLOCK.getKey(state.getBlock());
-        String path = key.getPath();
-
-        if (path.contains("putting_green")) {
-            return 0.93D;
-        }
-
-        if (path.contains("fairway")) {
-            return 0.9D;
-        }
-
-        if (path.contains("rough")) {
-            return 0.7D;
-        }
-
-        if (path.contains("sand") || path.contains("gravel")) {
-            return 0.5D;
-        }
-
-        if (path.contains("ice")) {
-            return 0.99D;
-        }
-
-        return 0.9D;
-    }
-
-    private double getBounceMultiplier(BlockState state) {
-        ResourceLocation key = BuiltInRegistries.BLOCK.getKey(state.getBlock());
-        String path = key.getPath();
-
-        if (path.contains("putting_green")) {
-            return 0.55D;
-        }
-
-        if (path.contains("fairway")) {
-            return 0.55D;
-        }
-
-        if (path.contains("rough")) {
-            return 0.4D;
-        }
-
-        if (path.contains("sand")) {
-            return 0.0D;
-        }
-
-        if (path.contains("dirt") || path.contains("grass") || path.contains("soul")) {
-            return 0.3D;
-        }
-
-        if (path.contains("concrete")) {
-            return 0.9D;
-        }
-
-        if (path.contains("stone") || path.contains("brick")) {
-            return 0.8D;
-        }
-
-        if (path.contains("wood") || path.contains("plank")) {
-            return 0.8D;
-        }
-
-        return 0.7D;
-    }
-
-    private void checkForHole() {
-        BlockPos pos = this.blockPosition();
-        BlockState state = this.level().getBlockState(pos);
-
-        if (!state.is(GolfMod.GOLF_FLAG_BLOCK.get())) {
-            return;
-        }
-
-        Vec3 holeCenter = new Vec3(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D);
-        double horizontalDistSqr = Math.pow(this.getX() - holeCenter.x, 2) + Math.pow(this.getZ() - holeCenter.z, 2);
-        
-        Vec3 motion = this.getDeltaMovement();
-        double speedSqr = motion.lengthSqr();
-        boolean isInAir = !this.onGround();
-
-        if (speedSqr <= HOLE_STOPPED_SPEED_THRESHOLD_SQR && horizontalDistSqr <= HOLE_STOPPED_RADIUS_SQR) {
-            if (this.getY() <= pos.getY() + 0.8D) {
-                onScored();
-            }
-            return;
-        }
-
-        if (horizontalDistSqr > HOLE_RADIUS_SQR) {
-            return;
-        }
-
-        if (isInAir) {
-            if (speedSqr > HOLE_AIR_SPEED_THRESHOLD_SQR) {
-                return;
-            }
-        } else {
-            if (speedSqr > HOLE_ROLLING_SPEED_THRESHOLD_SQR) {
-                return;
-            }
-        }
-
-        if (this.getY() <= pos.getY() + 0.8D) {
-            onScored();
-        }
+    private void checkForHole(Vec3 previousPosition, Vec3 approachVelocity, double elapsedTicks) {
+        if (this.isAlive() && cupCapture.update(this, previousPosition, approachVelocity, elapsedTicks)) { onScored(); }
     }
 
     private void onScored() {

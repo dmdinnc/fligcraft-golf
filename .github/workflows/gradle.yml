@@ -35,3 +35,9 @@ jobs:
 
     - name: Build with Gradle Wrapper
       run: ./gradlew build
+
+    - name: Compile client test fixtures
+      run: ./gradlew compileClientTestJava compileFlightClientTestJava compileGraderClientTestJava compileCartClientTestJava compileReloadClientTestJava
+
+    - name: Run headless Minecraft GameTests
+      run: ./gradlew runGameTestServer
