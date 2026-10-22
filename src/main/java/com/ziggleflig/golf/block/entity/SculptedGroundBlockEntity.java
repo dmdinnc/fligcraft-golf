@@ -6,6 +6,7 @@ import com.ziggleflig.golf.entity.GolfBallEntity;
 import com.ziggleflig.golf.terrain.SculptedSurface;
 import java.util.List;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -121,6 +122,17 @@ public class SculptedGroundBlockEntity extends BlockEntity {
 
     /** Balls use the exact edited surface; other entities use vanilla-style conservative push-up. */
     private void liftEntities(SculptedSurface previous, SculptedSurface next) {
+        // Reducing a steep tile to a gentle one can raise its level mob support even while lowering corners.
+        for (var mob : level.getEntitiesOfClass(Mob.class,
+                new AABB(worldPosition).expandTowards(0, 1, 0))) {
+            var added = Shapes.joinUnoptimized(previous.walkingCollisionShape(mob.maxUpStep()),
+                next.walkingCollisionShape(mob.maxUpStep()), BooleanOp.ONLY_SECOND)
+                .move(worldPosition.getX(), worldPosition.getY(), worldPosition.getZ());
+            if (added.isEmpty()) { continue; }
+            double clearance = SculptedSurface.MAX_HEIGHT / (double) SculptedSurface.BLOCK_HEIGHT;
+            double down = Shapes.collide(Direction.Axis.Y, mob.getBoundingBox().move(0, clearance, 0), List.of(added), -clearance);
+            if (clearance + down > 0.000001) { mob.teleportRelative(0, clearance + down, 0); }
+        }
         if (next.northWest() <= previous.northWest() && next.northEast() <= previous.northEast()
                 && next.southEast() <= previous.southEast() && next.southWest() <= previous.southWest()) { return; }
         // A small corner edit can change the real surface without changing any of the coarse boxes.
@@ -136,7 +148,7 @@ public class SculptedGroundBlockEntity extends BlockEntity {
             .move(worldPosition.getX(), worldPosition.getY(), worldPosition.getZ());
         if (!added.isEmpty()) {
             for (var entity : level.getEntities(null, added.bounds())) {
-                if (entity instanceof GolfBallEntity) { continue; }
+                if (entity instanceof GolfBallEntity || entity instanceof Mob) { continue; }
                 double down = Shapes.collide(Direction.Axis.Y, entity.getBoundingBox().move(0, 1, 0), List.of(added), -1);
                 if (1 + down > 0.000001) { entity.teleportRelative(0, 1 + down, 0); }
             }

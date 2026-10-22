@@ -12,11 +12,15 @@ import com.ziggleflig.golf.GolfWind;
 import com.ziggleflig.golf.entity.GolfBallEntity;
 import com.ziggleflig.golf.terrain.SculptedBallPhysics;
 import com.ziggleflig.golf.terrain.GolfSurfacePhysics;
+import com.ziggleflig.golf.terrain.TerrainMaterial;
 import com.ziggleflig.golf.network.ShotAccuracyPayload;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
@@ -277,6 +281,7 @@ public class GolfClubItem extends Item {
         
         double powerMultiplier = 0.7D + (0.3D * accuracy);
         double power = basePowerCalc * powerMultiplier;
+        boolean sandHit = isRestingOnSand(player.level(), target);
         
         if (target.isOnTee()) {
             power *= 1.10D;
@@ -310,12 +315,49 @@ public class GolfClubItem extends Item {
         target.setPuttShot(this.isPutter);
 
         target.setDeltaMovement(velocity);
+        playHitSound(player.level(), target, charge, sandHit);
 
         String accuracyText = String.format("Accuracy: %.0f%%", accuracy * 100);
         player.displayClientMessage(
             Component.literal(accuracyText),
             true
         );
+    }
+
+    private boolean isRestingOnSand(Level level, GolfBallEntity target) {
+        if (target.isOnTee() || target.isInWaterOrBubble()
+                || level.getFluidState(target.blockPosition()).is(Fluids.WATER)) {
+            return false;
+        }
+        var support = SculptedBallPhysics.support(level, target.position(), target.getBbWidth() / 2.0, 0.015);
+        if (support != null) { return support.material() == TerrainMaterial.SAND; }
+        return level.getBlockState(BlockPos.containing(target.position().add(0, -0.01, 0))).is(BlockTags.SAND);
+    }
+
+    private void playHitSound(Level level, GolfBallEntity target, float charge, boolean sandHit) {
+        if (level.isClientSide) { return; }
+        String club = BuiltInRegistries.ITEM.getKey(this).getPath();
+        float pitch = switch (club) {
+            case "driver" -> 0.60F;
+            case "hybrid" -> 0.67F;
+            case "iron" -> 0.74F;
+            case "pitching_wedge" -> 0.81F;
+            case "sand_wedge" -> 0.88F;
+            default -> 0.70F;
+        };
+        float strength = 0.4F + 0.6F * charge;
+        // Server broadcast with no excluded player includes the hitter exactly once.
+        level.playSound(null, target.getX(), target.getY(), target.getZ(), SoundEvents.CHAIN_HIT, SoundSource.PLAYERS,
+            (this.isPutter ? 0.35F : 0.75F) * strength * (sandHit ? 0.65F : 1.0F), pitch);
+        if (!this.isPutter) {
+            level.playSound(null, target.getX(), target.getY(), target.getZ(),
+                club.equals("driver") || club.equals("hybrid") ? SoundEvents.PLAYER_ATTACK_STRONG : SoundEvents.PLAYER_ATTACK_WEAK,
+                SoundSource.PLAYERS, 0.35F * strength, 0.9F);
+        }
+        if (sandHit) {
+            level.playSound(null, target.getX(), target.getY(), target.getZ(), SoundEvents.SAND_BREAK,
+                SoundSource.PLAYERS, 0.8F * strength, 0.85F);
+        }
     }
     
     private float calculateSliderPosition(long elapsedMs) {

@@ -13,6 +13,13 @@ The mod must offer driver, hybrid, iron, pitching wedge, sand wedge, and putter 
 - When a player strikes the same ball using different club types under otherwise equal conditions
 - Then the launch reflects each club's configured power and intended loft or putting behavior
 
+### Hit sounds
+All six clubs share the vanilla chain impact, with slight pitch variations: driver 0.60, hybrid 0.67, iron 0.74, pitching wedge 0.81, sand wedge 0.88, and quiet putter 0.70. Longer full-shot clubs sound lower, while sand wedge sounds highest. Non-putters add a short attack sound at pitch 0.9 for the swing. Lower charges are quieter.
+
+Any club striking from bunker sand or vanilla sand/red sand adds a sand crunch and a softer impact. Sculpted slopes and extensions use the actual supporting terrain material. Teed balls and balls in water do not add the sand layer.
+
+Sounds play at the ball when the server launches it, including the six-second automatic shot. The hitter and nearby players hear the same broadcast through the Players sound category. Charging, arming, and attempts without a valid pending ball remain silent. The mod references existing vanilla events and bundles no audio recordings.
+
 ### Charged accuracy shot
 Holding a club must charge shot power. Releasing it near an eligible ball must arm an accuracy shot, which is struck by a left-click or automatically after six seconds. The launch must reflect charge, accuracy timing, aim, and the selected club.
 
@@ -79,3 +86,20 @@ Golf tees must support placed balls. A powered driving-range bay must provide ba
 #### Example: Occupied bay
 - When the target positions already contain balls
 - Then the bay avoids duplicating them
+
+### Automated carry calibration
+The headless suite must measure the five lofted clubs from both fairway and a tee over flat fairway under open sky. Shots use full charge, perfect accuracy, zero spin, and no wind. Carry must end at the first descending surface contact, before bounce or roll. A separate total distance must not affect calibration. Any ceiling clipping the initial flight must fail the benchmark. The putter has no carry target.
+
+Existing club balance remains unchanged. The mod does not prescribe target carry distances. The editable [test profile](../../../src/gameTest/resources/club-carry-profile.json) contains calibration test data; users can supply their own fairway carry targets, trial power factors, and tolerance when experimenting. Targets are entered in yards and converted using exactly 0.9144 meters per yard. Tee shots retain their normal height and launch-power bonus; their carry is measured rather than assigned another target.
+
+Run `./gradlew clubCarryTest` (Windows: `.\gradlew.bat clubCarryTest`). It runs the headless suite, measures the profile's trial factors, searches the supported effective power range, and validates the rounded recommendations with fresh shots against the profile's tolerance. Target misses at the current trial factors are reported; unreachable targets or failed verification of the recommendations fail the test.
+
+Outputs in `build/reports/club-carry/` are `carry.md`, `carry.csv`, `carry.json`, `suggested-clubs.toml`, `suggested-profile.json`, and `status.txt`. The reports identify the conditions, trial and recommended factors, and fairway/tee carry; JSON also includes flight time and apex. `status.txt` must say `PASS` for a successful current run. GitHub Actions uploads these as the `club-carry-calibration` artifact.
+
+To try different targets or factors, edit the test profile or pass `-PclubCarryProfile=path/to/profile.json`. To enforce that the trial factors meet the goals, add `-PclubCarryVerifyTargets=true`. For example, verify the generated recommendations with:
+
+```text
+./gradlew clubCarryTest "-PclubCarryProfile=build/reports/club-carry/suggested-profile.json" "-PclubCarryVerifyTargets=true"
+```
+
+The fixture executes real club strikes, then scales their launch vector to the requested effective factor; it does not copy the flight model or write shared server settings. Wind is disabled only on benchmark balls. Exported world settings assume a global factor of 1.0, with the calibrated factors assigned per club. They are suggestions for the active world's `serverconfig/fligcraft_golf-server.toml`, not automatically applied changes to gameplay defaults. Choose any putter setting separately.

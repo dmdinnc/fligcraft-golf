@@ -67,6 +67,21 @@ The rendered shape, collision, and lighting must reflect the current corners and
 - Then the surface retains normal tree shade without black patches or manual block updates
 - And lighting can read whether a cell is full before its corner metadata loads and on the lighting worker thread
 
+### Walking mobs
+Course blocks must let mobs walk over gentle terrain without repeatedly jumping at a higher corner of the tile they already occupy. A tile whose corner heights differ by at most 8/16, within the mob's normal step height, must provide mobs a level collision top at its highest corner. This can place their feet above the lower side of the visible surface. Steeper tiles retain stepped collision. Players and carts keep the existing stepped collision, and balls keep their exact terrain contacts.
+
+#### Example: Villager walking on a green
+- When a villager follows a route across gentle course slopes, including upper caps and different course materials
+- Then it can walk along the route without repeated terrain-induced obstacle jumps, using its normal AI and movement attributes
+
+#### Example: Lowered terrain and full caps
+- When a path crosses fully lowered terrain or a full-height cap
+- Then pathfinding uses the actual foundation or cap as support instead of treating solid caps as air
+
+#### Example: Change a mob's support
+- When a terrain edit increases a mob's collision support height, including by reducing a steep tile to a gentle tile
+- Then the mob is lifted onto that support rather than left inside it
+
 ### Saved-world compatibility
 Terrain edits must be server-owned, saved with the world, and synchronized to clients. Original fairway, rough, and putting-green IDs must remain usable; legacy layer blocks and items must not reappear.
 

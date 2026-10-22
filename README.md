@@ -25,11 +25,14 @@ Use JDK 21. The project targets Minecraft 1.21.1 and NeoForge 21.1.219. Run the 
 ```text
 ./gradlew build
 ./gradlew runGameTestServer
+./gradlew clubCarryTest
 ./gradlew compileClientTestJava compileFlightClientTestJava compileGraderClientTestJava compileCartClientTestJava compileReloadClientTestJava
 ./gradlew runClient
 ```
 
 `build` produces the mod jar in `build/libs/`. `runGameTestServer` runs the headless integration tests. The client fixture compilation checks test code without launching a graphical client. GitHub Actions runs the build, headless tests, and fixture compilation for pull requests to `main`.
+
+`clubCarryTest` runs the headless suite and exports tee/fairway carry measurements and suggested club settings to `build/reports/club-carry/`. See the [calibration notes](specs/play/clubs-and-shots/spec.md#automated-carry-calibration) for using custom profiles; no balance changes are applied automatically. CI uploads the reports as an artifact.
 
 Optional graphical tests require a display/GPU: `clientLightingTest`, `clientTerrainReloadTest`, `clientBallFlightTest`, `clientGraderPreviewTest`, and `clientCartSyncTest`. Run each as a separate Gradle command.
 
