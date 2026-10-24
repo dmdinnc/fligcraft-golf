@@ -97,6 +97,22 @@ public record SculptedSurface(int northWest, int northEast, int southEast, int s
             : cap ? Shapes.empty() : collisionShape();
     }
 
+    /** A gentle tile supports walking mobs at one height so vanilla does not mistake its higher tread for an obstacle. */
+    public VoxelShape walkingCollisionSlice(boolean cap, double maxUpStep) {
+        return walkingSurface(maxUpStep).collisionSlice(cap);
+    }
+    public VoxelShape walkingCollisionShape(double maxUpStep) {
+        return walkingSurface(maxUpStep).collisionShape();
+    }
+    private SculptedSurface walkingSurface(double maxUpStep) {
+        if (isFlat()) { return this; }
+        int low = Math.min(Math.min(northWest, northEast), Math.min(southEast, southWest));
+        int high = Math.max(Math.max(northWest, northEast), Math.max(southEast, southWest));
+        // Bound the visual offset and retain ordinary stepping/jumping on steeper ground.
+        return high - low <= Math.min(0.5, maxUpStep) * BLOCK_HEIGHT
+            ? flat(high) : this;
+    }
+
     /** Both visual cells and ball contacts use this single closed surface, without a face at the cap boundary. */
     public List<TerrainTriangle> triangles() { return TRIANGLES.getUnchecked(this); }
     private List<TerrainTriangle> buildTriangles() {

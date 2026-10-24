@@ -1,0 +1,10 @@
+{
+  "toleranceMeters": 0.5,
+  "clubs": [
+    {"club": "driver", "targetYards": 220, "powerMultiplier": 1.0},
+    {"club": "hybrid", "targetYards": 180, "powerMultiplier": 1.0},
+    {"club": "iron", "targetYards": 150, "powerMultiplier": 1.0},
+    {"club": "pitching_wedge", "targetYards": 100, "powerMultiplier": 1.0},
+    {"club": "sand_wedge", "targetYards": 70, "powerMultiplier": 1.0}
+  ]
+}

@@ -285,7 +285,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         double airRetention = this.onGround() ? 1.0 : this.hasLanded ? 0.995 : 0.97;
         Vec3 motion = applyWind(applyMagnusEffect(this.getDeltaMovement().scale(airRetention)));
         double gravity = this.isNoGravity() ? 0 : 0.035 * airRetention;
-        var result = SculptedBallPhysics.move(this, motion, gravity, GolfSurfacePhysics::response, this::checkForHole);
+        var result = SculptedBallPhysics.move(this, motion, gravity, GolfSurfacePhysics::response, this::onPhysicsMove);
         if (result.touchedGround()) { recordCarryDistance(); maybeDisplayDrivingRangeStats(); }
 
         maybeReturnFromWater();
@@ -347,7 +347,7 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         return motion.add(sideways.scale(curveStrength));
     }
 
-    private Vec3 applyWind(Vec3 motion) {
+    protected Vec3 applyWind(Vec3 motion) {
         if (this.onGround()) {
             return motion;
         }
@@ -438,7 +438,8 @@ public class GolfBallEntity extends Entity implements ItemSupplier {
         }
     }
 
-    private void checkForHole(Vec3 previousPosition, Vec3 approachVelocity, double elapsedTicks) {
+    /** Called at each physics movement, including the contact position before its bounce response. */
+    protected void onPhysicsMove(Vec3 previousPosition, Vec3 approachVelocity, double elapsedTicks) {
         if (this.isAlive() && cupCapture.update(this, previousPosition, approachVelocity, elapsedTicks)) { onScored(); }
     }
 

@@ -18,6 +18,7 @@ import net.minecraft.world.level.LevelReader;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.phys.BlockHitResult;
@@ -39,6 +40,8 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.EntityCollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.world.level.pathfinder.PathComputationType;
+import net.minecraft.world.level.pathfinder.PathType;
 
 public class SculptedGroundBlock extends BaseEntityBlock {
     // Lighting runs without access to block entities, including during chunk decoding.
@@ -111,8 +114,16 @@ public class SculptedGroundBlock extends BaseEntityBlock {
         return drops;
     }
     @Override protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        if (context instanceof EntityCollisionContext entity && entity.getEntity() instanceof GolfBallEntity) { return Shapes.empty(); }
+        if (context instanceof EntityCollisionContext entity) {
+            if (entity.getEntity() instanceof GolfBallEntity) { return Shapes.empty(); }
+            if (entity.getEntity() instanceof Mob mob) { return surface(level, pos).walkingCollisionSlice(cap, mob.maxUpStep()); }
+        }
         return surface(level, pos).collisionSlice(cap);
+    }
+    @Override protected boolean isPathfindable(BlockState state, PathComputationType type) { return false; }
+    @Override public PathType getBlockPathType(BlockState state, BlockGetter level, BlockPos pos, Mob mob) {
+        // Caps are terrain, not walk-through air. Empty tiles still allow paths at foundation height.
+        return surface(level, pos).collisionSlice(cap).isEmpty() ? PathType.OPEN : PathType.BLOCKED;
     }
     @Override protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         VoxelShape shape = surface(level, pos).collisionSlice(cap);

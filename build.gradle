@@ -108,6 +108,31 @@ sourceSets {
 }
 runs.gameTestServer.modSource sourceSets.gameTest
 
+// The carry benchmark shares the real headless test world and remains excluded from the mod jar.
+def clubCarryReportDir = layout.buildDirectory.dir('reports/club-carry').get().asFile
+runs.gameTestServer.systemProperty 'fligcraft_golf.carryReportDir', clubCarryReportDir.absolutePath
+runs.gameTestServer.systemProperty 'fligcraft_golf.carryProfile',
+    file(providers.gradleProperty('clubCarryProfile').getOrElse('src/gameTest/resources/club-carry-profile.json')).absolutePath
+runs.gameTestServer.systemProperty 'fligcraft_golf.carryVerifyTargets',
+    providers.gradleProperty('clubCarryVerifyTargets').getOrElse('false')
+tasks.matching { it.name == 'runGameTestServer' }.configureEach {
+    doFirst {
+        clubCarryReportDir.mkdirs()
+        new File(clubCarryReportDir, 'status.txt').text = 'NOT_RUN'
+    }
+}
+tasks.register('clubCarryTest') {
+    group = 'verification'
+    description = 'Measure tee/fairway carry and export power settings calibrated against the carry profile.'
+    dependsOn 'runGameTestServer'
+    doLast {
+        if (new File(clubCarryReportDir, 'status.txt').text.trim() != 'PASS') {
+            throw new GradleException('Club carry calibration did not pass; see the report and GameTest log.')
+        }
+        logger.lifecycle("Club carry reports: ${clubCarryReportDir}")
+    }
+}
+
 // An opt-in real client test, with its own world and no fixture code in normal runClient or the jar.
 def clientLightingReport = file('runs/clientLightingTests/terrain-client-lighting-result.txt')
 tasks.register('clientLightingTest') {
